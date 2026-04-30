@@ -1,0 +1,41 @@
+# Caddyfile.local — Local development only
+# Runs WITHOUT admin rights on non-privileged ports.
+# Domains work via hosts file entries (127.0.0.1 www.elabs.com, 127.0.0.1 gateway.elabs.com)
+#
+# Access:
+#   http://www.elabs.com:8888        → consulting site (Waitress on :8080)
+#   http://gateway.elabs.com:8889    → OpenClaw gateway (on :18789)
+#
+# Start: caddy.exe run --config Caddyfile.local
+
+http://www.elabs.com:8888 {
+	root * "C:/path/to/E-Labs-Consulting"
+	file_server
+}
+
+http://gateway.elabs.com:8889 {
+	# Fast-fail requests missing Authorization (except /health probe)
+	@no_auth {
+		not header Authorization *
+		not path /health
+	}
+	respond @no_auth 401 {
+		body `{"error":"Authorization header required"}`
+		close
+	}
+
+	# CORS pre-flight
+	@cors_preflight method OPTIONS
+	handle @cors_preflight {
+		header Access-Control-Allow-Origin "http://www.elabs.com:8888"
+		header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+		header Access-Control-Allow-Headers "Authorization, Content-Type"
+		header Access-Control-Max-Age "86400"
+		respond 204
+	}
+
+	header Access-Control-Allow-Origin "http://www.elabs.com:8888"
+	header Access-Control-Allow-Headers "Authorization, Content-Type"
+
+	reverse_proxy 127.0.0.1:18789
+}
