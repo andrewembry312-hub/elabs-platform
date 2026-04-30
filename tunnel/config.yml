@@ -1,0 +1,32 @@
+# Cloudflare Tunnel configuration for elabsai.com
+# ─────────────────────────────────────────────────────────────────────────────
+# BEFORE FIRST USE:
+#   1. cloudflared tunnel login
+#   2. cloudflared tunnel create elabs-prod
+#   3. Copy the tunnel UUID printed above into `tunnel:` below
+#   4. Copy ~/.cloudflared/<UUID>.json to this directory (or leave in default)
+#   5. Run: cloudflared tunnel --config tunnel/config.yml run
+# ─────────────────────────────────────────────────────────────────────────────
+
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: C:\Users\AI-Machine\.cloudflared\REPLACE_WITH_TUNNEL_UUID.json
+
+ingress:
+  # E-Labs Copilot WebUI + API (FastAPI on :8001)
+  - hostname: copilot.elabsai.com
+    service: http://127.0.0.1:8001
+
+  # OpenClaw Gateway (on :18789)
+  - hostname: gateway.elabsai.com
+    service: http://127.0.0.1:18789
+
+  # Hermes Agent UI (on :7860)
+  - hostname: hermes.elabsai.com
+    service: http://127.0.0.1:7860
+
+  # ComfyUI image generation (on :8188)
+  - hostname: comfy.elabsai.com
+    service: http://127.0.0.1:8188
+
+  # Catch-all: 404 for anything not matched above
+  - service: http_status:404

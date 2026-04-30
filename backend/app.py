@@ -253,6 +253,28 @@ app = FastAPI(title="Local AI Orchestrator WebUI")
 log = logging.getLogger("app")
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
 
+# ── CORS ─────────────────────────────────────────────────────────────────────
+from fastapi.middleware.cors import CORSMiddleware as _CORSMiddleware
+
+_CORS_BASE_ORIGINS = [
+    "http://127.0.0.1:8001",
+    "http://127.0.0.1:8080",
+    "http://www.elabs.com:8888",
+    "https://andrewembry312-hub.github.io",
+    "https://copilot.elabsai.com",
+    "https://www.elabsai.com",
+]
+_extra = [o.strip() for o in os.environ.get("ELABS_EXTRA_CORS", "").split(",") if o.strip()]
+_CORS_ORIGINS = _CORS_BASE_ORIGINS + _extra
+
+app.add_middleware(
+    _CORSMiddleware,
+    allow_origins=_CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Disable browser caching for JS/CSS during development
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
@@ -289,7 +311,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         response.headers.setdefault(
             "Content-Security-Policy",
-            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws: wss: http://127.0.0.1:18789; frame-src 'self'; frame-ancestors 'self'; object-src 'none';"
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ws: wss: http://127.0.0.1:18789 https://copilot.elabsai.com https://gateway.elabsai.com; frame-src 'self'; frame-ancestors 'self'; object-src 'none';"
         )
         return response
 
