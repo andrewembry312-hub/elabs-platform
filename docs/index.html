@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Labs Platform — Local AI Orchestration Stack</title>
+    <meta name="description" content="Self-hosted AI platform: local WebUI, multi-agent orchestration, JWT auth, OpenClaw gateway, and Caddy public endpoints. Open source by E-Labs.">
+    <meta name="theme-color" content="#06080f">
+    <meta name="color-scheme" content="dark">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="E-Labs Platform — Local AI Orchestration Stack">
+    <meta property="og:description" content="Self-hosted AI WebUI with multi-agent orchestration, JWT auth, OpenClaw gateway, and Caddy HTTPS. Deploy anywhere.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://andrewembry312-hub.github.io/elabs-platform/">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-deep:       #06080f;
+            --bg-primary:    #0a0e1a;
+            --bg-card:       #0f1422;
+            --bg-card-hover: #141a2e;
+            --border-subtle: rgba(56, 189, 248, 0.08);
+            --border-accent: rgba(56, 189, 248, 0.2);
+            --cyan:          #38bdf8;
+            --cyan-bright:   #67e8f9;
+            --cyan-glow:     rgba(56, 189, 248, 0.12);
+            --green:         #76b900;
+            --green-glow:    rgba(118, 185, 0, 0.12);
+            --violet:        #8b5cf6;
+            --emerald:       #34d399;
+            --amber:         #fbbf24;
+            --text-primary:  #f1f5f9;
+            --text-secondary:#94a3b8;
+            --text-muted:    #7b8ba3;
+            --radius-sm:     8px;
+            --radius-md:     12px;
+            --radius-lg:     16px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Nav ─────────────────────────────────────────────── */
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6, 8, 15, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 0 2rem;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .nav-brand {
+            font-weight: 800;
+            font-size: 1.1rem;
+            letter-spacing: -0.02em;
+            background: linear-gradient(90deg, var(--cyan), var(--green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-decoration: none;
+        }
+        .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--text-primary); }
+        .nav-links .btn-nav {
+            background: var(--cyan);
+            color: #06080f;
+            padding: 0.4rem 1rem;
+            border-radius: var(--radius-sm);
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        .nav-links .btn-nav:hover { background: var(--cyan-bright); color: #06080f; }
+
+        /* ── Hero ────────────────────────────────────────────── */
+        .hero {
+            padding: 6rem 2rem 5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -60px; left: 50%;
+            transform: translateX(-50%);
+            width: 700px; height: 400px;
+            background: radial-gradient(ellipse at center, rgba(56,189,248,0.07) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            color: var(--cyan);
+            padding: 0.3rem 0.9rem;
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 1.5rem;
+        }
+        .hero h1 {
+            font-size: clamp(2.2rem, 6vw, 4rem);
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+            margin-bottom: 1.25rem;
+        }
+        .hero h1 span {
+            background: linear-gradient(135deg, var(--cyan), var(--green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero p {
+            font-size: clamp(1rem, 2.5vw, 1.2rem);
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 2.5rem;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.75rem;
+            border-radius: var(--radius-md);
+            font-weight: 700;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background: var(--cyan);
+            color: #06080f;
+        }
+        .btn-primary:hover { background: var(--cyan-bright); transform: translateY(-1px); }
+        .btn-outline {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-accent);
+        }
+        .btn-outline:hover { background: var(--bg-card); border-color: var(--cyan); }
+
+        /* ── Stats strip ─────────────────────────────────────── */
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            padding: 2rem;
+            border-top: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+            background: var(--bg-primary);
+            flex-wrap: wrap;
+        }
+        .stat { text-align: center; }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, var(--cyan), var(--violet));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stat-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; margin-top: 0.15rem; }
+
+        /* ── Section ─────────────────────────────────────────── */
+        section { padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--cyan);
+            margin-bottom: 0.75rem;
+        }
+        .section-title {
+            font-size: clamp(1.6rem, 4vw, 2.4rem);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 1rem;
+        }
+        .section-desc {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            max-width: 560px;
+            margin-bottom: 3rem;
+        }
+
+        /* ── Cards ───────────────────────────────────────────── */
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 1.75rem;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .card:hover {
+            border-color: var(--border-accent);
+            background: var(--bg-card-hover);
+            transform: translateY(-2px);
+        }
+        .card-icon {
+            width: 44px; height: 44px;
+            background: var(--cyan-glow);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+        }
+        .card-icon.green { background: var(--green-glow); border-color: rgba(118, 185, 0, 0.2); }
+        .card-icon.violet { background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.2); }
+        .card-icon.amber { background: rgba(251, 191, 36, 0.08); border-color: rgba(251, 191, 36, 0.2); }
+        .card-icon.emerald { background: rgba(52, 211, 153, 0.08); border-color: rgba(52, 211, 153, 0.2); }
+        .card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .card p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.6; }
+        .card .tag {
+            display: inline-block;
+            margin-top: 1rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            padding: 0.2rem 0.6rem;
+            border-radius: 100px;
+            background: rgba(52, 211, 153, 0.1);
+            color: var(--emerald);
+            border: 1px solid rgba(52, 211, 153, 0.25);
+        }
+        .card .tag.dev {
+            background: rgba(251, 191, 36, 0.1);
+            color: var(--amber);
+            border-color: rgba(251, 191, 36, 0.25);
+        }
+
+        /* ── Code block ──────────────────────────────────────── */
+        .code-block {
+            background: #0a0e1a;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.875rem;
+            line-height: 1.7;
+            overflow-x: auto;
+        }
+        .code-block .c  { color: var(--text-muted); }          /* comment */
+        .code-block .kw { color: var(--cyan); }                 /* keyword */
+        .code-block .str { color: var(--emerald); }             /* string */
+        .code-block .cmd { color: var(--text-primary); }        /* command */
+        .code-block .var { color: var(--amber); }               /* variable */
+
+        /* ── Stack diagram ───────────────────────────────────── */
+        .stack {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+        }
+        .stack-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 0.9rem 1.25rem;
+        }
+        .stack-row:hover { border-color: var(--border-accent); }
+        .stack-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .dot-cyan    { background: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+        .dot-green   { background: var(--green); box-shadow: 0 0 6px var(--green); }
+        .dot-violet  { background: var(--violet); box-shadow: 0 0 6px var(--violet); }
+        .dot-emerald { background: var(--emerald); box-shadow: 0 0 6px var(--emerald); }
+        .dot-amber   { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+        .stack-name  { font-weight: 600; font-size: 0.9rem; flex: 1; }
+        .stack-port  { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); }
+
+        /* ── Two-col layout ──────────────────────────────────── */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: start;
+        }
+        @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+
+        /* ── CTA strip ───────────────────────────────────────── */
+        .cta-strip {
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+        .cta-strip h2 { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.75rem; }
+        .cta-strip p  { color: var(--text-secondary); margin-bottom: 2rem; font-size: 1rem; }
+
+        /* ── Footer ──────────────────────────────────────────── */
+        footer {
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border-subtle);
+        }
+        footer a { color: var(--cyan); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<!-- ── Nav ───────────────────────────────────────────────────── -->
+<nav>
+    <a class="nav-brand" href="#">E-Labs Platform</a>
+    <div class="nav-links">
+        <a href="#products">Products</a>
+        <a href="#quickstart">Quickstart</a>
+        <a href="#stack">Stack</a>
+        <a href="https://andrewembry312-hub.github.io/E-Labs-Consulting/" target="_blank" rel="noopener">Consulting</a>
+        <a class="btn-nav" href="https://github.com/andrewembry312-hub/elabs-platform" target="_blank" rel="noopener">GitHub →</a>
+    </div>
+</nav>
+
+<!-- ── Hero ──────────────────────────────────────────────────── -->
+<div class="hero">
+    <div class="hero-badge">⚡ Self-Hosted AI Stack</div>
+    <h1>Your AI platform.<br><span>Deployed locally.</span></h1>
+    <p>
+        Full-stack AI orchestration: local WebUI, multi-agent routing, JWT auth,
+        OpenClaw gateway, and Caddy public HTTPS — all running on your hardware.
+    </p>
+    <div class="hero-actions">
+        <a class="btn btn-primary" href="https://github.com/andrewembry312-hub/elabs-platform" target="_blank" rel="noopener">
+            View on GitHub
+        </a>
+        <a class="btn btn-outline" href="#quickstart">Quickstart guide</a>
+        <a class="btn btn-outline" href="https://andrewembry312-hub.github.io/E-Labs-Consulting/" target="_blank" rel="noopener">
+            E-Labs Consulting
+        </a>
+    </div>
+</div>
+
+<!-- ── Stats ─────────────────────────────────────────────────── -->
+<div class="stats">
+    <div class="stat">
+        <div class="stat-value">5</div>
+        <div class="stat-label">AI Products</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">FastAPI</div>
+        <div class="stat-label">Backend</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">Caddy v2</div>
+        <div class="stat-label">HTTPS Gateway</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">JWT</div>
+        <div class="stat-label">Auth System</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">SSE</div>
+        <div class="stat-label">Streaming</div>
+    </div>
+</div>
+
+<!-- ── Products ──────────────────────────────────────────────── -->
+<section id="products">
+    <div class="section-label">Products</div>
+    <h2 class="section-title">Everything in one platform</h2>
+    <p class="section-desc">Five AI products that work together — or independently — on your own hardware.</p>
+    <div class="cards">
+        <div class="card">
+            <div class="card-icon">🤖</div>
+            <h3>E-Labs Copilot</h3>
+            <p>Dark-themed local WebUI for conversational AI. Multi-mode: Chat, Agent, Native, Plan. CEO multi-agent routing, SSE streaming, persistent memory.</p>
+            <span class="tag">Production Ready</span>
+        </div>
+        <div class="card">
+            <div class="card-icon green">⚡</div>
+            <h3>THE MACHINE</h3>
+            <p>Visual multi-agent workflow orchestrator. DAG and swarm execution modes, real-time node telemetry, OpenClaw runtime, file workspace per project.</p>
+            <span class="tag">Production Ready</span>
+        </div>
+        <div class="card">
+            <div class="card-icon violet">🌐</div>
+            <h3>OpenClaw Gateway</h3>
+            <p>Public-facing AI API gateway via Caddy. Bearer-token auth, CORS enforcement, reverse-proxy to OpenClaw on :18789. Expose your AI securely.</p>
+            <span class="tag">Production Ready</span>
+        </div>
+        <div class="card">
+            <div class="card-icon emerald">🧠</div>
+            <h3>Hermes Agent</h3>
+            <p>Autonomous task agent with persistent plans, tool use, MCP support, and batch-runner. Connects to the Copilot frontend via hermes_bridge.</p>
+            <span class="tag">Production Ready</span>
+        </div>
+        <div class="card">
+            <div class="card-icon amber">🎨</div>
+            <h3>ComfyUI Integration</h3>
+            <p>Wan 2.1 image and video generation via ComfyUI. Live model detection from history, health polling, Agent-mode routing from the WebUI.</p>
+            <span class="tag">Production Ready</span>
+        </div>
+        <div class="card">
+            <div class="card-icon violet">🏢</div>
+            <h3>E-Labs Enterprise</h3>
+            <p>Multi-tenant platform with admin controls, user management, and team access. Early access available — contact E-Labs for onboarding.</p>
+            <span class="tag dev">In Development</span>
+        </div>
+    </div>
+</section>
+
+<!-- ── Quickstart ─────────────────────────────────────────────── -->
+<section id="quickstart" style="padding-top: 0;">
+    <div class="section-label">Quickstart</div>
+    <h2 class="section-title">Up in 60 seconds</h2>
+
+    <div class="two-col">
+        <div>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">Clone, install deps, start the backend. The WebUI opens at <code style="color: var(--cyan); background: var(--bg-card); padding: 0.1rem 0.4rem; border-radius: 4px;">http://127.0.0.1:8001</code>.</p>
+
+            <div class="code-block">
+<span class="c"># 1. Clone</span>
+<span class="kw">git</span> <span class="cmd">clone</span> <span class="str">https://github.com/andrewembry312-hub/elabs-platform.git</span>
+<span class="kw">cd</span> elabs-platform
+
+<span class="c"># 2. Python env</span>
+<span class="kw">python</span> -m venv .venv
+<span class="c"># Windows:</span>  .venv<span class="str">\Scripts\Activate.ps1</span>
+<span class="c"># Linux:</span>    source .venv/bin/activate
+
+<span class="kw">pip</span> install -r backend/requirements.txt
+
+<span class="c"># 3. Configure</span>
+<span class="kw">cp</span> .env.example .env
+<span class="c"># Edit .env — set ELABS_JWT_SECRET</span>
+
+<span class="c"># 4. Start</span>
+<span class="kw">.\scripts\start.ps1</span>          <span class="c"># Windows</span>
+<span class="kw">./scripts/start.sh</span>           <span class="c"># Linux / macOS</span>
+            </div>
+        </div>
+
+        <div>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.95rem;">To expose <code style="color: var(--cyan); background: var(--bg-card); padding: 0.1rem 0.4rem; border-radius: 4px;">www.elabs.com</code> and <code style="color: var(--cyan); background: var(--bg-card); padding: 0.1rem 0.4rem; border-radius: 4px;">gateway.elabs.com</code> with auto-TLS, run Caddy.</p>
+
+            <div class="code-block">
+<span class="c"># Install Caddy (Windows)</span>
+<span class="c"># https://caddyserver.com/docs/install</span>
+
+<span class="c"># Start (Linux/macOS — requires DNS pointed first)</span>
+<span class="kw">caddy</span> run --config caddy/Caddyfile
+
+<span class="c"># Local dev (no DNS, no TLS, any OS)</span>
+<span class="kw">caddy</span> run --config caddy/Caddyfile.local
+<span class="c"># Then add to /etc/hosts (or Windows hosts):</span>
+<span class="str">127.0.0.1  www.elabs.com</span>
+<span class="str">127.0.0.1  gateway.elabs.com</span>
+
+<span class="c"># Verify</span>
+<span class="kw">curl</span> http://www.elabs.com:8888/
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── Stack ──────────────────────────────────────────────────── -->
+<section id="stack">
+    <div class="section-label">Architecture</div>
+    <h2 class="section-title">The full stack</h2>
+    <p class="section-desc">All services run on loopback. Caddy is the only public-facing component.</p>
+
+    <div class="stack">
+        <div class="stack-row">
+            <div class="stack-dot dot-cyan"></div>
+            <div class="stack-name">Caddy v2 — TLS termination &amp; reverse proxy</div>
+            <div class="stack-port">:80 / :443</div>
+        </div>
+        <div class="stack-row">
+            <div class="stack-dot dot-green"></div>
+            <div class="stack-name">FastAPI backend — AI orchestration, auth, memory, SSE</div>
+            <div class="stack-port">127.0.0.1:8001</div>
+        </div>
+        <div class="stack-row">
+            <div class="stack-dot dot-violet"></div>
+            <div class="stack-name">OpenClaw gateway — multi-agent AI runtime</div>
+            <div class="stack-port">127.0.0.1:18789</div>
+        </div>
+        <div class="stack-row">
+            <div class="stack-dot dot-emerald"></div>
+            <div class="stack-name">Waitress — static consulting site WSGI host</div>
+            <div class="stack-port">127.0.0.1:8080</div>
+        </div>
+        <div class="stack-row">
+            <div class="stack-dot dot-amber"></div>
+            <div class="stack-name">ComfyUI — image &amp; video generation (Wan 2.1)</div>
+            <div class="stack-port">127.0.0.1:8188</div>
+        </div>
+        <div class="stack-row">
+            <div class="stack-dot dot-cyan"></div>
+            <div class="stack-name">Ollama — local LLM inference</div>
+            <div class="stack-port">127.0.0.1:11434</div>
+        </div>
+    </div>
+</section>
+
+<!-- ── CTA ───────────────────────────────────────────────────── -->
+<div class="cta-strip">
+    <h2>Start building with your AI</h2>
+    <p>Clone the repo, install deps, and have a working local AI platform in minutes.</p>
+    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+        <a class="btn btn-primary" href="https://github.com/andrewembry312-hub/elabs-platform" target="_blank" rel="noopener">
+            View on GitHub
+        </a>
+        <a class="btn btn-outline" href="https://andrewembry312-hub.github.io/E-Labs-Consulting/#contact" target="_blank" rel="noopener">
+            Contact E-Labs
+        </a>
+    </div>
+</div>
+
+<!-- ── Footer ────────────────────────────────────────────────── -->
+<footer>
+    <p>
+        &copy; 2026 E-Labs &mdash;
+        <a href="https://github.com/andrewembry312-hub/elabs-platform" target="_blank" rel="noopener">GitHub</a> &middot;
+        <a href="https://andrewembry312-hub.github.io/E-Labs-Consulting/" target="_blank" rel="noopener">Consulting Site</a> &middot;
+        Built by <a href="https://andrewembry312-hub.github.io/E-Labs-Consulting/about.html" target="_blank" rel="noopener">Andrew Embry</a>
+    </p>
+</footer>
+
+</body>
+</html>
