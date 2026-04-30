@@ -332,6 +332,23 @@ except ImportError as _auth_err:
     def _auth_guard(*_a, **_kw):  # no-op passthrough if auth_router unavailable
         return None
 
+# ── Billing router ─────────────────────────────────────────────────────────────
+try:
+    from billing_router import router as _billing_router, check_and_increment_usage as _check_usage
+    app.include_router(_billing_router, prefix="/api/billing")
+    logging.getLogger("app").info("Billing router mounted at /api/billing")
+except ImportError as _billing_err:
+    logging.getLogger("app").warning("billing_router not loaded: %s", _billing_err)
+    def _check_usage(*_a, **_kw): return True  # allow all if billing unavailable
+
+# ── Org router ─────────────────────────────────────────────────────────────────
+try:
+    from org_router import router as _org_router
+    app.include_router(_org_router, prefix="/api/auth")
+    logging.getLogger("app").info("Org router mounted at /api/auth/orgs")
+except ImportError as _org_err:
+    logging.getLogger("app").warning("org_router not loaded: %s", _org_err)
+
 # ── Store the uvicorn event loop for workspace_watcher SSE broadcasts ─────────
 # broadcast_task_event is called from background swarm threads; without a stored
 # loop reference, asyncio.get_event_loop() from a thread returns the WRONG loop

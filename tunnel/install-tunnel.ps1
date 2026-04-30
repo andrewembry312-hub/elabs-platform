@@ -65,7 +65,7 @@ Write-Host "     config.yml updated." -ForegroundColor Green
 # ── 5. Create DNS CNAME records ───────────────────────────────────────────────
 Write-Host ""
 Write-Host "[5/5] Creating DNS CNAME records for elabsai.com..." -ForegroundColor Cyan
-$subdomains = @("copilot", "gateway", "hermes", "comfy")
+$subdomains = @("www", "copilot", "machine", "api", "gateway", "enterprise", "gpu")
 foreach ($sub in $subdomains) {
     Write-Host "     Adding $sub.elabsai.com -> $uuid.cfargotunnel.com"
     & $cfBin tunnel route dns $TunnelName "$sub.elabsai.com" 2>&1
@@ -84,8 +84,11 @@ Write-Host "  To install as a Windows service (auto-start on reboot):"
 Write-Host "    cloudflared service install --config `"$ConfigPath`"" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  Your endpoints (once DNS propagates, usually < 5 min):"
-Write-Host "    https://copilot.elabsai.com  -> Backend API + WebUI"
-Write-Host "    https://gateway.elabsai.com  -> OpenClaw"
-Write-Host "    https://hermes.elabsai.com   -> Hermes Agent"
-Write-Host "    https://comfy.elabsai.com    -> ComfyUI"
+Write-Host "    https://www.elabsai.com          -> Marketing + pricing landing page"
+Write-Host "    https://copilot.elabsai.com      -> E-Labs Copilot WebUI + API"
+Write-Host "    https://machine.elabsai.com      -> THE MACHINE workflows"
+Write-Host "    https://api.elabsai.com           -> OpenClaw developer API"
+Write-Host "    https://gateway.elabsai.com      -> OpenClaw (compat alias)"
+Write-Host "    https://enterprise.elabsai.com   -> Enterprise early access"
+Write-Host "    https://gpu.elabsai.com           -> GPU Rental Platform"
 Write-Host ""

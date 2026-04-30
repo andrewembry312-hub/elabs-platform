@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E-Labs AI Platform — Local AI, Professionally Deployed</title>
+<meta name="description" content="E-Labs: Local AI orchestration, multi-agent workflows, and enterprise-grade GPU infrastructure. Deploy on your own hardware — zero cloud dependency.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0a0a0f;
+  --bg2:      #111118;
+  --bg3:      #16161f;
+  --border:   #1e1e2e;
+  --border2:  #2a2a3e;
+  --text:     #e8e8f0;
+  --muted:    #8888a8;
+  --accent:   #6c63ff;
+  --accent2:  #8b5cf6;
+  --green:    #22c55e;
+  --yellow:   #eab308;
+  --red:      #ef4444;
+  --radius:   12px;
+  --radius-lg:20px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+
+/* ── NAV ── */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,10,15,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 2rem; height: 60px;
+}
+.nav-logo { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em; }
+.nav-logo span { color: var(--accent); }
+.nav-links { display: flex; align-items: center; gap: 1.5rem; }
+.nav-links a { font-size: 0.9rem; color: var(--muted); transition: color .2s; }
+.nav-links a:hover { color: var(--text); }
+.nav-right { display: flex; align-items: center; gap: 0.75rem; }
+.btn-ghost { font-size: 0.875rem; color: var(--muted); padding: 0.4rem 1rem; border-radius: 8px; transition: all .2s; }
+.btn-ghost:hover { color: var(--text); background: var(--bg3); }
+.btn-nav-cta {
+  font-size: 0.875rem; font-weight: 600;
+  background: var(--accent); color: #fff;
+  padding: 0.45rem 1.1rem; border-radius: 8px;
+  transition: background .2s;
+}
+.btn-nav-cta:hover { background: var(--accent2); }
+
+/* ── HERO ── */
+.hero {
+  text-align: center;
+  padding: 7rem 2rem 5rem;
+  max-width: 900px; margin: 0 auto;
+}
+.hero-pill {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-size: 0.8rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  background: rgba(108,99,255,0.12); color: var(--accent);
+  border: 1px solid rgba(108,99,255,0.3);
+  padding: 0.3rem 0.9rem; border-radius: 999px; margin-bottom: 1.75rem;
+}
+.hero h1 {
+  font-size: clamp(2.4rem, 6vw, 4rem);
+  font-weight: 900; line-height: 1.1; letter-spacing: -0.04em;
+  margin-bottom: 1.25rem;
+}
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p {
+  font-size: 1.15rem; color: var(--muted); max-width: 600px; margin: 0 auto 2.5rem;
+  line-height: 1.7;
+}
+.hero-actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; border-radius: 10px; padding: 0.65rem 1.4rem; font-size: 0.95rem; transition: all .2s; cursor: pointer; border: none; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+.btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border2); }
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+.btn-sm { padding: 0.45rem 1rem; font-size: 0.85rem; }
+
+/* ── STATS BAR ── */
+.stats {
+  display: flex; justify-content: center; flex-wrap: wrap; gap: 0;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+.stat { text-align: center; padding: 1.5rem 2.5rem; border-right: 1px solid var(--border); }
+.stat:last-child { border-right: none; }
+.stat-value { font-size: 1.6rem; font-weight: 800; color: var(--text); }
+.stat-label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.2rem; }
+
+/* ── SECTION ── */
+section { padding: 5rem 2rem; max-width: 1200px; margin: 0 auto; }
+.section-label {
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 0.75rem;
+}
+.section-title { font-size: clamp(1.6rem, 3.5vw, 2.2rem); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.75rem; }
+.section-sub { font-size: 1rem; color: var(--muted); max-width: 560px; line-height: 1.7; margin-bottom: 3rem; }
+
+/* ── PRODUCTS GRID ── */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+.product-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.75rem;
+  transition: border-color .2s, transform .2s;
+  display: flex; flex-direction: column; gap: 0.75rem;
+  position: relative; overflow: hidden;
+}
+.product-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.product-card.featured { border-color: var(--accent); background: linear-gradient(135deg, var(--bg2), rgba(108,99,255,0.06)); }
+.product-card.coming-soon { opacity: 0.65; }
+.card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.card-icon { font-size: 1.6rem; }
+.card-badges { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.badge {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 0.2rem 0.6rem; border-radius: 999px;
+}
+.badge-live { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+.badge-soon { background: rgba(234,179,8,0.12); color: var(--yellow); border: 1px solid rgba(234,179,8,0.25); }
+.badge-early { background: rgba(108,99,255,0.12); color: var(--accent); border: 1px solid rgba(108,99,255,0.3); }
+.badge-roadmap { background: rgba(136,136,168,0.1); color: var(--muted); border: 1px solid rgba(136,136,168,0.2); }
+.badge-custom { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+.card-title { font-size: 1.05rem; font-weight: 700; }
+.card-desc { font-size: 0.875rem; color: var(--muted); line-height: 1.6; flex: 1; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.tag {
+  font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 5px;
+  background: var(--bg3); color: var(--muted); border: 1px solid var(--border);
+}
+.card-action { margin-top: 0.5rem; }
+
+/* ── PRICING ── */
+.pricing-products { display: flex; flex-direction: column; gap: 4rem; }
+.pricing-product-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 1.25rem; }
+.tiers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
+.tier-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.75rem;
+  display: flex; flex-direction: column; gap: 1rem;
+  transition: border-color .2s;
+}
+.tier-card.popular { border-color: var(--accent); position: relative; }
+.tier-card.popular::before {
+  content: 'Most Popular';
+  position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+  font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  background: var(--accent); color: #fff;
+  padding: 0.2rem 0.75rem; border-radius: 0 0 8px 8px;
+}
+.tier-name { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.tier-price { display: flex; align-items: baseline; gap: 0.2rem; }
+.tier-price .amount { font-size: 2.1rem; font-weight: 900; }
+.tier-price .period { font-size: 0.85rem; color: var(--muted); }
+.tier-price .custom { font-size: 1.3rem; font-weight: 800; color: var(--muted); }
+.tier-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+.tier-features { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
+.tier-features li { font-size: 0.83rem; display: flex; align-items: flex-start; gap: 0.5rem; }
+.tier-features li .check { color: var(--green); flex-shrink: 0; margin-top: 2px; }
+.tier-features li .cross { color: var(--muted); flex-shrink: 0; margin-top: 2px; }
+.tier-features li .limit { color: var(--yellow); flex-shrink: 0; margin-top: 2px; }
+.tier-cta { margin-top: auto; }
+
+/* ── ORGS ── */
+.orgs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-top: 2rem; }
+.orgs-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1.5rem; display: flex; flex-direction: column; gap: 0.6rem;
+}
+.orgs-card h4 { font-size: 0.95rem; font-weight: 700; }
+.orgs-card p { font-size: 0.83rem; color: var(--muted); line-height: 1.5; }
+
+/* ── ROADMAP ── */
+.roadmap-list { display: flex; flex-direction: column; gap: 1rem; max-width: 700px; }
+.roadmap-item {
+  display: flex; align-items: flex-start; gap: 1rem;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1rem 1.25rem;
+}
+.roadmap-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+.dot-done { background: var(--green); }
+.dot-next { background: var(--accent); box-shadow: 0 0 8px rgba(108,99,255,0.6); }
+.dot-future { background: var(--muted); opacity: 0.4; }
+.roadmap-item h4 { font-size: 0.9rem; font-weight: 700; }
+.roadmap-item p { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+
+/* ── CTA STRIP ── */
+.cta-strip {
+  text-align: center;
+  background: linear-gradient(135deg, rgba(108,99,255,0.08), rgba(139,92,246,0.04));
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  padding: 5rem 2rem;
+}
+.cta-strip h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800; margin-bottom: 0.75rem; }
+.cta-strip p { color: var(--muted); margin-bottom: 2rem; }
+.cta-strip .actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+
+/* ── FOOTER ── */
+footer {
+  background: var(--bg2); border-top: 1px solid var(--border);
+  padding: 3rem 2rem 2rem;
+  max-width: 100%;
+}
+.footer-inner { max-width: 1200px; margin: 0 auto; }
+.footer-grid {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 2rem;
+  margin-bottom: 2.5rem;
+}
+.footer-brand p { font-size: 0.83rem; color: var(--muted); margin-top: 0.5rem; max-width: 280px; line-height: 1.6; }
+.footer-col h5 { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.75rem; }
+.footer-col a { display: block; font-size: 0.85rem; color: var(--muted); padding: 0.2rem 0; transition: color .2s; }
+.footer-col a:hover { color: var(--text); }
+.footer-bottom { border-top: 1px solid var(--border); padding-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.footer-bottom span { font-size: 0.8rem; color: var(--muted); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .stats { flex-direction: column; }
+  .stat { border-right: none; border-bottom: 1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ─────────────────────────────────────────────────────────────────── -->
+<nav>
+  <a class="nav-logo" href="#"><span>E-Labs</span> AI Platform</a>
+  <div class="nav-links">
+    <a href="#products">Products</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="#organizations">Organizations</a>
+    <a href="https://andrewembry312-hub.github.io/E-Labs-Consulting/" target="_blank" rel="noopener">Consulting</a>
+  </div>
+  <div class="nav-right">
+    <a class="btn-ghost" href="https://copilot.elabsai.com/api/auth/login" target="_blank">Log in</a>
+    <a class="btn-nav-cta" href="https://copilot.elabsai.com" target="_blank">Launch App ↗</a>
+  </div>
+</nav>
+
+<!-- ── HERO ─────────────────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-pill">⚡ Now live at copilot.elabsai.com</div>
+  <h1>Local AI,<br><em>professionally deployed.</em></h1>
+  <p>
+    Full-stack AI orchestration on your own hardware. Multi-agent routing,
+    visual workflows, GPU-accelerated generation — no cloud lock-in, no API bills.
+  </p>
+  <div class="hero-actions">
+    <a class="btn btn-primary" href="https://copilot.elabsai.com" target="_blank" rel="noopener">Launch E-Labs Copilot ↗</a>
+    <a class="btn btn-outline" href="#products">Explore products</a>
+    <a class="btn btn-outline" href="https://andrewembry312-hub.github.io/E-Labs-Consulting/" target="_blank" rel="noopener">Book a consultation</a>
+  </div>
+</div>
+
+<!-- ── STATS ─────────────────────────────────────────────────────────────────── -->
+<div class="stats">
+  <div class="stat"><div class="stat-value">7</div><div class="stat-label">Products</div></div>
+  <div class="stat"><div class="stat-value">100%</div><div class="stat-label">On-Premise</div></div>
+  <div class="stat"><div class="stat-value">FastAPI</div><div class="stat-label">Backend</div></div>
+  <div class="stat"><div class="stat-value">JWT</div><div class="stat-label">Auth</div></div>
+  <div class="stat"><div class="stat-value">Stripe</div><div class="stat-label">Billing</div></div>
+  <div class="stat"><div class="stat-value">SSE</div><div class="stat-label">Streaming</div></div>
+</div>
+
+<!-- ── PRODUCTS ──────────────────────────────────────────────────────────────── -->
+<section id="products">
+  <div class="section-label">Products</div>
+  <div class="section-title">Everything you need to run AI at work</div>
+  <p class="section-sub">From conversational AI to enterprise GPU orchestration — every E-Labs product runs on your hardware and integrates with your stack.</p>
+
+  <div class="products-grid">
+
+    <!-- Copilot -->
+    <div class="product-card featured">
+      <div class="card-header">
+        <div class="card-icon">🤖</div>
+        <div class="card-badges"><span class="badge badge-live">Live</span></div>
+      </div>
+      <div class="card-title">E-Labs Copilot</div>
+      <div class="card-desc">
+        Conversational AI WebUI with CEO-level multi-agent routing. Chat, Agent, Native, and Plan modes.
+        Persistent memory, SSE streaming, tool-calling, ComfyUI + Hermes integration.
+      </div>
+      <div class="card-tags">
+        <span class="tag">Chat</span><span class="tag">Multi-agent</span><span class="tag">Memory</span><span class="tag">Streaming</span>
+      </div>
+      <div class="card-action">
+        <a class="btn btn-primary btn-sm" href="https://copilot.elabsai.com" target="_blank" rel="noopener">Launch Copilot ↗</a>
+      </div>
+    </div>
+
+    <!-- The Machine -->
+    <div class="product-card featured">
+      <div class="card-header">
+        <div class="card-icon">⚡</div>
+        <div class="card-badges"><span class="badge badge-live">Live</span></div>
+      </div>
+      <div class="card-title">THE MACHINE</div>
+      <div class="card-desc">
+        Visual multi-agent workflow orchestrator. Build DAG and swarm pipelines with real-time node telemetry,
+        VRAM-aware scheduling, and pause/resume/cancel controls.
+      </div>
+      <div class="card-tags">
+        <span class="tag">Workflows</span><span class="tag">DAG</span><span class="tag">Swarm</span><span class="tag">GPU-aware</span>
+      </div>
+      <div class="card-action">
+        <a class="btn btn-primary btn-sm" href="https://machine.elabsai.com" target="_blank" rel="noopener">Launch MACHINE ↗</a>
+      </div>
+    </div>
+
+    <!-- Enterprise -->
+    <div class="product-card">
+      <div class="card-header">
+        <div class="card-icon">🏢</div>
+        <div class="card-badges"><span class="badge badge-early">Early Access</span></div>
+      </div>
+      <div class="card-title">E-Labs Enterprise</div>
+      <div class="card-desc">
+        Multi-tenant orchestration with role-based access, organization workspaces, admin controls,
+        team billing, and SSO. Built for teams deploying AI at scale.
+      </div>
+      <div class="card-tags">
+        <span class="tag">Multi-tenant</span><span class="tag">RBAC</span><span class="tag">Orgs</span><span class="tag">SSO</span>
+      </div>
+      <div class="card-action">
+        <a class="btn btn-outline btn-sm" href="https://enterprise.elabsai.com" target="_blank" rel="noopener">Request Early Access →</a>
+      </div>
+    </div>
+
+    <!-- GPU Rental -->
+    <div class="product-card coming-soon">
+      <div class="card-header">
+        <div class="card-icon">🖥️</div>
+        <div class="card-badges"><span class="badge badge-soon">Coming Soon</span></div>
+      </div>
+      <div class="card-title">GPU Rental Platform</div>
+      <div class="card-desc">
+        Rent dedicated GPU time on E-Labs hardware — on-demand or reserved capacity.
+        Pay-per-hour or monthly subscription. VRAM-optimized LLM and image generation workloads.
+      </div>
+      <div class="card-tags">
+        <span class="tag">GPU-as-a-Service</span><span class="tag">Metered</span><span class="tag">Reserved</span>
+      </div>
+      <div class="card-action">
+        <a class="btn btn-outline btn-sm" href="https://gpu.elabsai.com" target="_blank" rel="noopener">Join Waitlist →</a>
+      </div>
+    </div>
+
+    <!-- MCP Servers -->
+    <div class="product-card coming-soon">
+      <div class="card-header">
+        <div class="card-icon">🔌</div>
+        <div class="card-badges"><span class="badge badge-roadmap">Roadmap</span></div>
+      </div>
+      <div class="card-title">E-Labs MCP Servers</div>
+      <div class="card-desc">
+        Battle-tested MCP server framework for connecting AI agents to databases, APIs, and internal tools.
+        Works with Claude, GitHub Copilot, local models, and any MCP-compatible client.
+      </div>
+      <div class="card-tags">
+        <span class="tag">MCP</span><span class="tag">Claude</span><span class="tag">Copilot</span><span class="tag">APIs</span>
+      </div>
+      <div class="card-action">
+        <a class="btn btn-outline btn-sm" href="https://andrewembry312-hub.github.io/E-Labs-Consulting/#contact" target="_blank" rel="noopener">Get Notified →</a>
+      </div>
+    </div>
+
+    <!-- Agents & Skills -->
+    <div class="product-card coming-soon">
+      <div class="card-header">
+        <div class="card-icon">🧠</div>
+        <div class="card-badges"><span class="badge badge-roadmap">Roadmap</span></div>
+      </div>
+      <div class="card-title">E-Labs Agents &amp; Skills</div>
+      <div class="card-desc">
+        Marketplace of pre-built agents and skill packs: research loops, code automation,
+        report generation, data pipelines, and more. Deploy into Copilot or The Machine with one click.
+      </div>
+      <div class="card-tags">
+        <span class="tag">Marketplace</span><span class="tag">Agents</span><span class="tag">Skills</span>
+      </div>
+      <div class="card-action">
+        <a class="btn btn-outline btn-sm" href="https://andrewembry312-hub.github.io/E-Labs-Consulting/#contact" target="_blank" rel="noopener">Get Notified →</a>
+      </div>
+    </div>
+
+    <!-- Consulting -->
+    <div class="product-card">
+      <div class="card-header">
+        <div class="card-icon">📋</div>
+        <div class="card-badges"><span class="badge badge-custom">Custom Pricing</span></div>
+      </div>
+      <div class="card-title">E-Labs Consulting</div>
+      <div class="card-desc">
+        End-to-end AI deployment consulting. Local LLM setup, MCP server development,
+        Power BI / Azure integration, process automation — on-premise, no vendor lock-in.
+      </div>
+      <div class="card-tags">
+        <span class="tag">$4k–$8k+</span><span class="tag">Fixed-price</span><span class="tag">On-premise</span>
+      </div>
+      <div class="card-action">
+        <a class="btn btn-outline btn-sm" href="https://andrewembry312-hub.github.io/E-Labs-Consulting/" target="_blank" rel="noopener">Book Free Consultation →</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── PRICING ───────────────────────────────────────────────────────────────── -->
+<section id="pricing" style="background: var(--bg2); max-width: 100%; padding: 5rem 2rem;">
+<div style="max-width:1200px; margin: 0 auto;">
+  <div class="section-label">Pricing</div>
+  <div class="section-title">Simple, transparent tiers</div>
+  <p class="section-sub">
+    Start free. Upgrade when you need more. All subscriptions billed monthly — cancel any time.
+    Consulting and GPU Rental are custom-quoted.
+  </p>
+
+  <div class="pricing-products">
+
+    <!-- ── Copilot pricing ── -->
+    <div>
+      <div class="pricing-product-title">🤖 E-Labs Copilot</div>
+      <div class="tiers-grid">
+
+        <div class="tier-card">
+          <div class="tier-name">Free</div>
+          <div class="tier-price"><span class="amount">$0</span></div>
+          <div class="tier-desc">Perfect for trying out the platform locally.</div>
+          <ul class="tier-features">
+            <li><span class="limit">⚠</span> 50 messages / month</li>
+            <li><span class="check">✓</span> Basic models (8B)</li>
+            <li><span class="check">✓</span> Chat mode</li>
+            <li><span class="check">✓</span> Session memory only</li>
+            <li><span class="cross">–</span> Agent &amp; Plan modes</li>
+            <li><span class="cross">–</span> Persistent memory</li>
+            <li><span class="cross">–</span> Tool calling</li>
+            <li><span class="cross">–</span> ComfyUI / Hermes</li>
+          </ul>
+          <div class="tier-cta">
+            <a class="btn btn-outline btn-sm" href="https://copilot.elabsai.com" target="_blank">Get started free</a>
+          </div>
+        </div>
+
+        <div class="tier-card popular">
+          <div class="tier-name">Pro</div>
+          <div class="tier-price"><span class="amount">$19</span><span class="period">/month</span></div>
+          <div class="tier-desc">For individuals using AI daily in their workflow.</div>
+          <ul class="tier-features">
+            <li><span class="check">✓</span> Unlimited messages</li>
+            <li><span class="check">✓</span> All models (any VRAM)</li>
+            <li><span class="check">✓</span> Chat, Agent, Native, Plan modes</li>
+            <li><span class="check">✓</span> Persistent memory</li>
+            <li><span class="check">✓</span> Tool calling</li>
+            <li><span class="check">✓</span> ComfyUI integration</li>
+            <li><span class="check">✓</span> Hermes Agent access</li>
+            <li><span class="cross">–</span> Team workspace</li>
+          </ul>
+          <div class="tier-cta">
+            <a class="btn btn-primary btn-sm" href="/api/billing/checkout?product=copilot&tier=pro" target="_blank">Subscribe — $19/mo</a>
+          </div>
+        </div>
+
+        <div class="tier-card">
+          <div class="tier-name">Team</div>
+          <div class="tier-price"><span class="amount">$49</span><span class="period">/month</span></div>
+          <div class="tier-desc">For small teams sharing a Copilot workspace.</div>
+          <ul class="tier-features">
+            <li><span class="check">✓</span> Everything in Pro</li>
+            <li><span class="check">✓</span> Shared org workspace</li>
+            <li><span class="check">✓</span> Team memory (shared)</li>
+            <li><span class="check">✓</span> Admin panel</li>
+            <li><span class="check">✓</span> Up to 10 users</li>
+            <li><span class="check">✓</span> Invite management</li>
+            <li><span class="check">✓</span> Usage dashboard</li>
+            <li><span class="cross">–</span> SSO / SAML</li>
+          </ul>
+          <div class="tier-cta">
+            <a class="btn btn-primary btn-sm" href="/api/billing/checkout?product=copilot&tier=team" target="_blank">Subscribe — $49/mo</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── The Machine pricing ── -->
+    <div>
+      <div class="pricing-product-title">⚡ THE MACHINE</div>
+      <div class="tiers-grid">
+
+        <div class="tier-card">
+          <div class="tier-name">Starter</div>
+          <div class="tier-price"><span class="amount">$29</span><span class="period">/month</span></div>
+          <div class="tier-desc">Get started with visual multi-agent workflows.</div>
+          <ul class="tier-features">
+            <li><span class="limit">⚠</span> 100 workflow runs / month</li>
+            <li><span class="check">✓</span> Basic node types</li>
+            <li><span class="check">✓</span> Sequential execution</li>
+            <li><span class="check">✓</span> Project file workspace</li>
+            <li><span class="cross">–</span> Parallel / DAG execution</li>
+            <li><span class="cross">–</span> Swarm mode</li>
+            <li><span class="cross">–</span> Priority GPU scheduling</li>
+            <li><span class="cross">–</span> OpenClaw runtime</li>
+          </ul>
+          <div class="tier-cta">
+            <a class="btn btn-primary btn-sm" href="/api/billing/checkout?product=machine&tier=starter" target="_blank">Subscribe — $29/mo</a>
+          </div>
+        </div>
+
+        <div class="tier-card popular">
+          <div class="tier-name">Pro</div>
+          <div class="tier-price"><span class="amount">$79</span><span class="period">/month</span></div>
+          <div class="tier-desc">Unlimited workflows with full parallel DAG + swarm execution.</div>
+          <ul class="tier-features">
+            <li><span class="check">✓</span> Unlimited workflow runs</li>
+            <li><span class="check">✓</span> All node types</li>
+            <li><span class="check">✓</span> Parallel / DAG execution</li>
+            <li><span class="check">✓</span> Swarm mode</li>
+            <li><span class="check">✓</span> Priority GPU scheduling</li>
+            <li><span class="check">✓</span> OpenClaw runtime</li>
+            <li><span class="check">✓</span> Real-time node telemetry</li>
+            <li><span class="check">✓</span> Pause / resume / cancel</li>
+          </ul>
+          <div class="tier-cta">
+            <a class="btn btn-primary btn-sm" href="/api/billing/checkout?product=machine&tier=pro" target="_blank">Subscribe — $79/mo</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Enterprise + GPU ── -->
+    <div>
+      <div class="pricing-product-title">🏢 Enterprise &amp; GPU Rental — Custom Pricing</div>
+      <div class="tiers-grid" style="grid-template-columns: repeat(auto-fill, minmax(300px,1fr));">
+
+        <div class="tier-card">
+          <div class="tier-name">Enterprise</div>
+          <div class="tier-price"><span class="custom">Custom quote</span></div>
+          <div class="tier-desc">Multi-tenant platform with org-level isolation, SSO, SLA, and dedicated support.</div>
+          <ul class="tier-features">
+            <li><span class="check">✓</span> Everything in Team</li>
+            <li><span class="check">✓</span> Unlimited users / orgs</li>
+            <li><span class="check">✓</span> SSO / SAML</li>
+            <li><span class="check">✓</span> Custom SLA</li>
+            <li><span class="check">✓</span> Dedicated support</li>
+            <li><span class="check">✓</span> On-premise deployment</li>
+            <li><span class="check">✓</span> Audit logs</li>
+          </ul>
+          <div class="tier-cta">
+            <a class="btn btn-outline btn-sm" href="https://andrewembry312-hub.github.io/E-Labs-Consulting/#contact" target="_blank">Contact Sales →</a>
+          </div>
+        </div>
+
+        <div class="tier-card">
+          <div class="tier-name">GPU Rental</div>
+          <div class="tier-price"><span class="custom">$/hr or monthly</span></div>
+          <div class="tier-desc">Dedicated GPU time on E-Labs hardware. On-demand burst or reserved capacity for production workloads.</div>
+          <ul class="tier-features">
+            <li><span class="check">✓</span> On-demand hourly billing</li>
+            <li><span class="check">✓</span> Monthly reserved capacity</li>
+            <li><span class="check">✓</span> VRAM-optimized scheduling</li>
+            <li><span class="check">✓</span> LLM inference + ComfyUI</li>
+            <li><span class="check">✓</span> API access</li>
+            <li><span class="soon">⏳</span> Coming soon</li>
+          </ul>
+          <div class="tier-cta">
+            <a class="btn btn-outline btn-sm" href="https://gpu.elabsai.com" target="_blank">Join Waitlist →</a>
+          </div>
+        </div>
+
+        <div class="tier-card">
+          <div class="tier-name">Consulting</div>
+          <div class="tier-price"><span class="custom">$4k – $8k+</span></div>
+          <div class="tier-desc">Fixed-price or milestone-based projects. Local AI deployment, MCP servers, Power BI, Azure, automation.</div>
+          <ul class="tier-features">
+            <li><span class="check">✓</span> Free discovery call</li>
+            <li><span class="check">✓</span> Security review included</li>
+            <li><span class="check">✓</span> Weekly build demos</li>
+            <li><span class="check">✓</span> Deploy + train handover</li>
+            <li><span class="check">✓</span> Post-project support</li>
+            <li><span class="check">✓</span> Small business friendly</li>
+          </ul>
+          <div class="tier-cta">
+            <a class="btn btn-primary btn-sm" href="https://andrewembry312-hub.github.io/E-Labs-Consulting/" target="_blank">Book Free Call →</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+</section>
+
+<!-- ── ORGANIZATIONS ─────────────────────────────────────────────────────────── -->
+<section id="organizations">
+  <div class="section-label">Organizations</div>
+  <div class="section-title">Teams + orgs, built in</div>
+  <p class="section-sub">
+    Create an organization, invite your team, and share a unified workspace — memory, workflows, and billing all in one account.
+  </p>
+  <div class="orgs-grid">
+    <div class="orgs-card">
+      <h4>🏗️ Create an Organization</h4>
+      <p>One click to create an org. Assign a plan, set the billing owner, and start inviting members.</p>
+    </div>
+    <div class="orgs-card">
+      <h4>📨 Invite by Email</h4>
+      <p>Invite teammates via email. They get a secure token link — no password required to accept.</p>
+    </div>
+    <div class="orgs-card">
+      <h4>🔑 Role-Based Access</h4>
+      <p>Owner, admin, and member roles. Admins manage billing and membership; members access shared workspace.</p>
+    </div>
+    <div class="orgs-card">
+      <h4>🧠 Shared Memory</h4>
+      <p>Org-scoped persistent memory in Copilot. Every team member sees the same context and history.</p>
+    </div>
+    <div class="orgs-card">
+      <h4>📊 Usage Dashboard</h4>
+      <p>See message counts, workflow runs, and API calls per member. Set limits before bills surprise you.</p>
+    </div>
+    <div class="orgs-card">
+      <h4>💳 Unified Billing</h4>
+      <p>One Stripe subscription covers the whole org. Upgrade, downgrade, or cancel from the portal in seconds.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── ROADMAP ───────────────────────────────────────────────────────────────── -->
+<section id="roadmap" style="background: var(--bg2); max-width: 100%; padding: 5rem 2rem;">
+<div style="max-width:1200px; margin: 0 auto;">
+  <div class="section-label">Roadmap</div>
+  <div class="section-title">What's coming next</div>
+  <p class="section-sub">E-Labs ships fast. Here's where we are and where we're heading.</p>
+
+  <div class="roadmap-list">
+    <div class="roadmap-item">
+      <div class="roadmap-dot dot-done"></div>
+      <div><h4>E-Labs Copilot — production</h4><p>Multi-agent WebUI live at copilot.elabsai.com. Auth, streaming, memory, tool-calling, ComfyUI + Hermes.</p></div>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-dot dot-done"></div>
+      <div><h4>Cloudflare Tunnel + elabsai.com</h4><p>Zero-config public HTTPS. No static IP, no port forwarding. All subdomains live.</p></div>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-dot dot-done"></div>
+      <div><h4>JWT Auth + CORS</h4><p>Bearer token authentication, auth_guard on all sensitive endpoints, CORS locked to allowed origins.</p></div>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-dot dot-next"></div>
+      <div><h4>Stripe billing + subscription tiers</h4><p>Copilot Pro/Team + Machine Starter/Pro. Checkout, webhooks, tier enforcement, customer portal.</p></div>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-dot dot-next"></div>
+      <div><h4>Organizations + team workspaces</h4><p>Create orgs, invite by email, shared memory, role-based access, unified billing.</p></div>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-dot dot-future"></div>
+      <div><h4>GPU Rental Platform</h4><p>On-demand and reserved GPU compute. Pay per hour or monthly. Metered Stripe billing.</p></div>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-dot dot-future"></div>
+      <div><h4>MCP Server Marketplace</h4><p>Browse, install, and subscribe to pre-built MCP servers. Connect to any AI client.</p></div>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-dot dot-future"></div>
+      <div><h4>Agents &amp; Skills Store</h4><p>One-click deploy of pre-built agents into Copilot or The Machine. Research, code, data, reports.</p></div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ── CTA STRIP ──────────────────────────────────────────────────────────────── -->
+<div class="cta-strip">
+  <h2>Ready to run AI on your own hardware?</h2>
+  <p>Launch the Copilot now, or book a free consultation to get your team set up.</p>
+  <div class="actions">
+    <a class="btn btn-primary" href="https://copilot.elabsai.com" target="_blank" rel="noopener">Launch E-Labs Copilot ↗</a>
+    <a class="btn btn-outline" href="#pricing">View pricing</a>
+    <a class="btn btn-outline" href="https://andrewembry312-hub.github.io/E-Labs-Consulting/" target="_blank" rel="noopener">Book a consultation</a>
+  </div>
+</div>
+
+<!-- ── FOOTER ──────────────────────────────────────────────────────────────────── -->
+<footer>
+<div class="footer-inner">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <div class="nav-logo"><span>E-Labs</span> AI Platform</div>
+      <p>Local AI orchestration, visual workflows, and enterprise GPU infrastructure — deployed on your hardware.</p>
+    </div>
+    <div class="footer-col">
+      <h5>Products</h5>
+      <a href="https://copilot.elabsai.com" target="_blank">E-Labs Copilot</a>
+      <a href="https://machine.elabsai.com" target="_blank">THE MACHINE</a>
+      <a href="https://enterprise.elabsai.com" target="_blank">Enterprise</a>
+      <a href="https://gpu.elabsai.com" target="_blank">GPU Rental</a>
+    </div>
+    <div class="footer-col">
+      <h5>Developers</h5>
+      <a href="https://api.elabsai.com" target="_blank">OpenClaw API</a>
+      <a href="https://github.com/andrewembry312-hub/elabs-platform" target="_blank">GitHub</a>
+      <a href="https://andrewembry312-hub.github.io/elabs-platform/" target="_blank">Docs</a>
+    </div>
+    <div class="footer-col">
+      <h5>Company</h5>
+      <a href="https://andrewembry312-hub.github.io/E-Labs-Consulting/" target="_blank">Consulting</a>
+      <a href="https://andrewembry312-hub.github.io/E-Labs-Consulting/about.html" target="_blank">About</a>
+      <a href="https://andrewembry312-hub.github.io/E-Labs-Consulting/#contact" target="_blank">Contact</a>
+      <a href="#pricing">Pricing</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; 2026 E-Labs &mdash; All rights reserved</span>
+    <span>contact@e-labs.com</span>
+  </div>
+</div>
+</footer>
+
+</body>
+</html>

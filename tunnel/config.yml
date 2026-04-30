@@ -6,27 +6,54 @@
 #   3. Copy the tunnel UUID printed above into `tunnel:` below
 #   4. Copy ~/.cloudflared/<UUID>.json to this directory (or leave in default)
 #   5. Run: cloudflared tunnel --config tunnel/config.yml run
+#
+# PRODUCT ARCHITECTURE:
+#   www              = Marketing / pricing landing page
+#   copilot          = E-Labs Copilot WebUI + API  (user-facing product)
+#   machine          = THE MACHINE workflow UI     (user-facing product)
+#   api              = OpenClaw developer API gateway (NOT a product — backend fabric)
+#   gateway          = OpenClaw compat alias
+#   enterprise       = Early-access waitlist page
+#   gpu              = GPU rental waitlist page
+#
+# INTERNAL (not exposed as public subdomains — accessed INSIDE Copilot UI only):
+#   Hermes Agent, ComfyUI — no public subdomains needed
 # ─────────────────────────────────────────────────────────────────────────────
 
 tunnel: REPLACE_WITH_TUNNEL_UUID
 credentials-file: C:\Users\AI-Machine\.cloudflared\REPLACE_WITH_TUNNEL_UUID.json
 
 ingress:
-  # E-Labs Copilot WebUI + API (FastAPI on :8001)
+  # ── Public marketing + pricing page ──────────────────────────────────────
+  - hostname: www.elabsai.com
+    service: http://127.0.0.1:8002
+    originRequest:
+      noTLSVerify: false
+
+  # ── E-Labs Copilot  (WebUI + full API, FastAPI on :8001) ─────────────────
   - hostname: copilot.elabsai.com
     service: http://127.0.0.1:8001
 
-  # OpenClaw Gateway (on :18789)
+  # ── THE MACHINE  (workflow orchestrator — same FastAPI backend) ───────────
+  - hostname: machine.elabsai.com
+    service: http://127.0.0.1:8001
+
+  # ── OpenClaw developer API  (bearer-token protected inference gateway) ────
+  - hostname: api.elabsai.com
+    service: http://127.0.0.1:18789
+
+  # ── OpenClaw gateway alias  (backward compat) ────────────────────────────
   - hostname: gateway.elabsai.com
     service: http://127.0.0.1:18789
 
-  # Hermes Agent UI (on :7860)
-  - hostname: hermes.elabsai.com
-    service: http://127.0.0.1:7860
+  # ── Enterprise early-access placeholder ──────────────────────────────────
+  # Serves a static waitlist/contact page until enterprise backend is ready
+  - hostname: enterprise.elabsai.com
+    service: http://127.0.0.1:8002
 
-  # ComfyUI image generation (on :8188)
-  - hostname: comfy.elabsai.com
-    service: http://127.0.0.1:8188
+  # ── GPU Rental Platform placeholder (other machine, coming soon) ──────────
+  - hostname: gpu.elabsai.com
+    service: http://127.0.0.1:8002
 
-  # Catch-all: 404 for anything not matched above
+  # ── Catch-all: 404 ───────────────────────────────────────────────────────
   - service: http_status:404
