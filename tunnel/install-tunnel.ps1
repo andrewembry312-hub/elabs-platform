@@ -92,3 +92,6 @@ Write-Host "    https://gateway.elabsai.com      -> OpenClaw (compat alias)"
 Write-Host "    https://enterprise.elabsai.com   -> Enterprise early access"
 Write-Host "    https://gpu.elabsai.com           -> GPU Rental Platform"
 Write-Host ""
+Write-Host "  Start www marketing server (port 8002):"
+Write-Host "    python backend\www_server.py" -ForegroundColor Yellow
+Write-Host ""
