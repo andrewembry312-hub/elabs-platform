@@ -1,0 +1,286 @@
+<!-- Stress Test Dashboard Modal -->
+<div class="modal-overlay" id="stress-test-modal">
+  <div class="modal" style="max-width: 900px; max-height: 80vh; overflow: auto;">
+    <div class="modal-header">
+      <h2>🧪 Stress Test Dashboard</h2>
+      <button class="modal-close" data-close="stress-test-modal">
+        <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body" style="padding: 20px;">
+      
+      <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+        <button id="stress-run-all-btn" class="btn" style="background: var(--green); color: #000; font-weight: 600;">
+          ▶️ Run All Tests
+        </button>
+        <button id="stress-quick-test-btn" class="btn" style="background: var(--sidebar); color: var(--text-secondary);">
+          ⚡ Quick Test
+        </button>
+        <button id="stress-view-cases-btn" class="btn" style="background: var(--sidebar); color: var(--text-secondary);">
+          📋 View Test Cases
+        </button>
+        <span id="stress-status" style="font-size: 12px; color: var(--text-muted); margin-top: 8px; min-width: 200px;">Ready</span>
+      </div>
+
+      <!-- Results Section -->
+      <div id="stress-results-section" style="display: none;">
+        <h3 style="color: var(--text-primary); margin: 16px 0 12px;">Test Results</h3>
+        
+        <div id="stress-summary" style="background: var(--bg-elevated); padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 13px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+            <div><strong>Total Tests:</strong> <span id="stress-total" style="color: var(--green);">0</span></div>
+            <div><strong>Passed:</strong> <span id="stress-passed" style="color: var(--green);">0</span></div>
+            <div><strong>Pass Rate:</strong> <span id="stress-pass-rate" style="color: var(--green);">0%</span></div>
+          </div>
+        </div>
+
+        <!-- Per-model breakdown -->
+        <div id="stress-models-breakdown" style="background: var(--bg-elevated); padding: 12px; border-radius: 8px; font-size: 12px; line-height: 1.8;">
+          <strong style="display: block; margin-bottom: 8px; color: var(--text-primary);">By Model:</strong>
+          <div id="stress-model-list"></div>
+        </div>
+
+        <!-- Category breakdown -->
+        <div id="stress-category-section" style="margin-top: 16px; background: var(--bg-elevated); padding: 12px; border-radius: 8px; font-size: 12px;">
+          <strong style="display: block; margin-bottom: 8px; color: var(--text-primary);">By Category:</strong>
+          <div id="stress-category-list"></div>
+        </div>
+
+        <!-- Recommendations -->
+        <div id="stress-recommendations" style="margin-top: 16px; background: rgba(118,185,0,0.1); padding: 12px; border-radius: 8px; border-left: 3px solid var(--green); font-size: 12px;">
+          <strong style="color: var(--green);">📊 Auto-Tuning Suggestions:</strong>
+          <div id="stress-suggestions-list" style="margin-top: 8px; color: var(--text-secondary);">-</div>
+        </div>
+      </div>
+
+      <!-- Quick Test Input -->
+      <div id="stress-quick-input" style="display: none; background: var(--bg-elevated); padding: 16px; border-radius: 8px; margin: 16px 0;">
+        <h3 style="color: var(--text-primary); margin: 0 0 12px;">Quick Single Test</h3>
+        
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Model:</label>
+          <select id="stress-quick-model" style="width: 100%; padding: 6px; background: var(--bg-deep); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+            <option value="max">MAX (Writing)</option>
+            <option value="gwen">GWEN (Code)</option>
+            <option value="nemotron">NEMOTRON (Analysis)</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Category:</label>
+          <select id="stress-quick-category" style="width: 100%; padding: 6px; background: var(--bg-deep); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+            <option value="code">Code</option>
+            <option value="writing">Writing</option>
+            <option value="analysis">Analysis</option>
+            <option value="edge_case">Edge Case</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">Your Test Prompt:</label>
+          <textarea id="stress-quick-prompt" style="width: 100%; padding: 8px; background: var(--bg-deep); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 12px; min-height: 80px; font-family: inherit; resize: vertical;" placeholder="Enter your test prompt here..."></textarea>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button id="stress-quick-run-btn" class="btn" style="background: var(--green); color: #000; font-weight: 600; flex: 1;">
+            Run Test
+          </button>
+          <button id="stress-quick-cancel-btn" class="btn" style="background: var(--sidebar); color: var(--text-secondary); flex: 1;">
+            Cancel
+          </button>
+        </div>
+
+        <div id="stress-quick-result" style="margin-top: 12px; padding: 12px; background: var(--bg-deep); border-radius: 4px; border-left: 3px solid var(--green); display: none;">
+          <strong style="display: block; margin-bottom: 8px; color: var(--green);">Result:</strong>
+          <div id="stress-quick-result-text" style="font-size: 12px; color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; max-height: 200px; overflow-y: auto;"></div>
+        </div>
+      </div>
+
+      <!-- Test Cases List -->
+      <div id="stress-cases-view" style="display: none;">
+        <h3 style="color: var(--text-primary); margin: 0 0 12px;">Available Test Cases</h3>
+        <div id="stress-cases-list" style="font-size: 12px; color: var(--text-secondary); line-height: 1.8;"></div>
+        <button id="stress-cases-back-btn" class="btn" style="margin-top: 12px; background: var(--sidebar); color: var(--text-secondary); width: 100%;">
+          ← Back
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<style>
+  .btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .btn:hover {
+    background: var(--green) !important;
+    color: #000 !important;
+    border-color: var(--green);
+  }
+</style>
+
+<script>
+// Stress Test Dashboard Controller
+(function() {
+  const modal = document.getElementById('stress-test-modal');
+  const statusEl = document.getElementById('stress-status');
+  const resultsSection = document.getElementById('stress-results-section');
+  const quickInputSection = document.getElementById('stress-quick-input');
+  const casesViewSection = document.getElementById('stress-cases-view');
+
+  // Button handlers
+  document.getElementById('stress-run-all-btn').onclick = async () => {
+    statusEl.textContent = '🔄 Running all tests...';
+    resultsSection.style.display = 'none';
+    
+    try {
+      const response = await fetch('/api/stress-test/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await response.json();
+      
+      if (data.status === 'complete') {
+        displayResults(data.report);
+        statusEl.textContent = '✅ Tests complete';
+      }
+    } catch (e) {
+      statusEl.textContent = '❌ Error: ' + e.message;
+    }
+  };
+
+  document.getElementById('stress-quick-test-btn').onclick = () => {
+    quickInputSection.style.display = 'block';
+    resultsSection.style.display = 'none';
+    casesViewSection.style.display = 'none';
+  };
+
+  document.getElementById('stress-view-cases-btn').onclick = async () => {
+    try {
+      const response = await fetch('/api/stress-test/test-cases');
+      const data = await response.json();
+      
+      const html = data.tests.map(t => `
+        <div style="padding: 8px; background: var(--bg-deep); margin-bottom: 8px; border-radius: 4px;">
+          <strong style="color: var(--green);">${t.id}</strong> 
+          <span style="color: var(--text-muted);">[${t.category}]</span>
+          <div style="margin-top: 4px; color: var(--text-secondary); font-size: 11px;">${t.prompt_preview}</div>
+        </div>
+      `).join('');
+      
+      document.getElementById('stress-cases-list').innerHTML = html;
+      casesViewSection.style.display = 'block';
+      resultsSection.style.display = 'none';
+      quickInputSection.style.display = 'none';
+    } catch (e) {
+      alert('Error loading test cases: ' + e.message);
+    }
+  };
+
+  document.getElementById('stress-quick-run-btn').onclick = async () => {
+    const model = document.getElementById('stress-quick-model').value;
+    const category = document.getElementById('stress-quick-category').value;
+    const prompt = document.getElementById('stress-quick-prompt').value;
+    
+    if (!prompt) {
+      alert('Please enter a test prompt');
+      return;
+    }
+    
+    statusEl.textContent = '⚡ Running quick test...';
+    
+    try {
+      const response = await fetch('/api/stress-test/run-single', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, category, prompt })
+      });
+      const data = await response.json();
+      
+      if (data.result) {
+        const r = data.result;
+        const resultHtml = `
+          <div><strong>Model:</strong> ${r.model_name}</div>
+          <div><strong>Quality Score:</strong> ${r.quality_score.toFixed(1)}/100</div>
+          <div><strong>Passed:</strong> ${r.passed ? '✅ Yes' : '❌ No'}</div>
+          <div><strong>Latency:</strong> ${r.latency_ms.toFixed(0)}ms</div>
+          <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);">
+            <strong>Response Preview:</strong>
+            <div style="margin-top: 4px; color: var(--text-muted);">${r.response_preview || '(empty)'}</div>
+          </div>
+        `;
+        document.getElementById('stress-quick-result-text').innerHTML = resultHtml;
+        document.getElementById('stress-quick-result').style.display = 'block';
+        statusEl.textContent = '✅ Quick test complete';
+      }
+    } catch (e) {
+      statusEl.textContent = '❌ Error: ' + e.message;
+    }
+  };
+
+  document.getElementById('stress-quick-cancel-btn').onclick = () => {
+    quickInputSection.style.display = 'none';
+    resultSection.style.display = 'none';
+    statusEl.textContent = 'Ready';
+  };
+
+  document.getElementById('stress-cases-back-btn').onclick = () => {
+    casesViewSection.style.display = 'none';
+    statusEl.textContent = 'Ready';
+  };
+
+  function displayResults(report) {
+    document.getElementById('stress-total').textContent = report.total_tests;
+    document.getElementById('stress-passed').textContent = report.total_passed;
+    document.getElementById('stress-pass-rate').textContent = (report.pass_rate || 0).toFixed(1) + '%';
+
+    // Per-model breakdown
+    const modelHtml = Object.entries(report.models || {}).map(([name, metrics]) => `
+      <div style="padding: 8px; background: var(--bg-deep); margin-bottom: 8px; border-radius: 4px;">
+        <strong style="color: var(--green);">${name}</strong>
+        <div style="margin-top: 4px; color: var(--text-secondary);">
+          Pass Rate: ${metrics.pass_rate?.toFixed(1) || 0}% | 
+          Avg Quality: ${metrics.avg_quality_score?.toFixed(1) || 0}/100 | 
+          Latency: ${metrics.avg_latency_ms?.toFixed(0) || 0}ms
+        </div>
+      </div>
+    `).join('');
+    document.getElementById('stress-model-list').innerHTML = modelHtml;
+
+    // Category breakdown
+    const cats = {};
+    Object.values(report.models || {}).forEach(m => {
+      Object.entries(m.category_breakdown || {}).forEach(([cat, data]) => {
+        if (!cats[cat]) cats[cat] = { passed: 0, total: 0 };
+        cats[cat].passed += data.passed || 0;
+        cats[cat].total += data.total || 0;
+      });
+    });
+    
+    const catHtml = Object.entries(cats).map(([cat, data]) => `
+      <div style="padding: 4px 0;">${cat}: ${data.passed}/${data.total} passed</div>
+    `).join('');
+    document.getElementById('stress-category-list').innerHTML = catHtml || '-';
+
+    // Recommendations
+    const suggestions = [];
+    Object.entries(report.models || {}).forEach(([name, m]) => {
+      if (m.pass_rate >= 80) suggestions.push(`✅ Use ${name} for most tasks`);
+      if (m.pass_rate < 60) suggestions.push(`⚠️ ${name} needs tuning`);
+    });
+    document.getElementById('stress-suggestions-list').textContent = suggestions.join(' | ') || 'All models performing adequately';
+
+    resultsSection.style.display = 'block';
+  }
+})();
+</script>

@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Machine — 3D Lab Workflow Engine</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg-deep:#030308;--bg-primary:#07070f;--bg-card:#0c0c18;
+      --bg-elevated:#12122a;--border:#151530;--border-light:#1e1e40;
+      --green:#76b900;--green-bright:#95d600;--cyan:#00d4ff;
+      --pink:#ff6b9d;--gold:#ffd700;--purple:#bb86fc;--blue:#4fc3f7;
+      --text-primary:#d8d8e8;--text-secondary:#888;--text-muted:#555;
+    }
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--bg-deep);color:var(--text-primary);overflow:hidden;height:100vh}
+    .layout{display:flex;height:100vh}
+
+    /* ═══ LEFT SIDEBAR ═══ */
+    .sidebar-left{width:190px;background:var(--bg-primary);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+    .sidebar-left h2{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:var(--text-muted);padding:16px 14px 10px}
+    .step-list{flex:1;overflow-y:auto;padding:0 6px}
+    .step-item{display:flex;align-items:center;gap:8px;padding:8px 8px;border-radius:6px;font-size:11px;color:var(--text-secondary);cursor:pointer;transition:all .3s;margin-bottom:1px;border:1px solid transparent}
+    .step-item:hover{background:rgba(0,212,255,0.05);color:var(--text-primary)}
+    .step-item.active{background:rgba(0,212,255,0.08);border-color:rgba(0,212,255,0.25);color:var(--cyan)}
+    .step-item.completed{color:var(--green-bright)}
+    .step-item.completed .step-dot{background:var(--green);box-shadow:0 0 6px rgba(118,185,0,.5)}
+    .step-item.active .step-dot{background:var(--cyan);box-shadow:0 0 8px rgba(0,212,255,.6);animation:pdot 1.5s infinite}
+    .step-dot{width:8px;height:8px;border-radius:50%;background:#2a2a4a;flex-shrink:0;transition:all .3s}
+    .step-label{font-weight:500;line-height:1.2}
+    .step-sub{font-size:9px;color:var(--text-muted);margin-top:1px}
+    @keyframes pdot{0%,100%{box-shadow:0 0 4px rgba(0,212,255,.4)}50%{box-shadow:0 0 12px rgba(0,212,255,.8)}}
+    .sb-progress{padding:10px 12px;border-top:1px solid var(--border)}
+    .sb-progress .label{font-size:9px;color:var(--text-muted);margin-bottom:4px}
+    .bar-track{height:3px;background:#1a1a3a;border-radius:2px;overflow:hidden}
+    .bar-fill{height:100%;border-radius:2px;transition:width .8s ease;background:linear-gradient(90deg,var(--green),var(--green-bright))}
+    .sb-pct{font-size:9px;color:var(--text-muted);margin-top:3px}
+
+    /* ═══ MAIN AREA ═══ */
+    .main-area{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden}
+    .top-bar{height:44px;background:rgba(5,5,14,.95);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:14px;z-index:10;backdrop-filter:blur(10px)}
+    .top-bar h1{font-size:15px;font-weight:700;color:var(--green);text-shadow:0 0 12px rgba(118,185,0,.35);display:flex;align-items:center;gap:7px}
+    .top-bar .tag{font-size:9px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase}
+    .spacer{flex:1}
+    .stat{font-size:11px;color:var(--text-muted)}.stat strong{color:var(--green-bright)}
+
+    /* Canvas fills everything */
+    #mainCanvas{flex:1;display:block;cursor:default;background:var(--bg-deep)}
+
+    /* ═══ BOTTOM BAR ═══ */
+    .bottom-bar{height:50px;background:rgba(5,5,14,.95);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:12px;z-index:10;backdrop-filter:blur(10px)}
+    .btn{padding:6px 16px;background:var(--bg-elevated);border:1px solid var(--border-light);border-radius:5px;color:#bbb;font-size:11px;cursor:pointer;transition:all .2s;font-family:inherit;font-weight:500}
+    .btn:hover{border-color:var(--green);color:var(--green);background:rgba(118,185,0,.06)}
+    .btn.on{background:var(--green);color:#000;border-color:var(--green);font-weight:700}
+    .btn:disabled{opacity:.3;cursor:not-allowed}
+    .speed-ctrl{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text-muted)}
+    .speed-ctrl input{width:70px;accent-color:var(--green)}
+    .speed-val{color:var(--green-bright);font-weight:600;min-width:28px}
+
+    /* ═══ RIGHT PANEL ═══ */
+    .panel-right{width:260px;background:var(--bg-primary);border-left:1px solid var(--border);overflow-y:auto;flex-shrink:0;scrollbar-width:thin;scrollbar-color:#1a1a3a transparent}
+    .psec{padding:12px 14px;border-bottom:1px solid var(--border)}
+    .psec h3{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px}
+    .play-card{display:flex;gap:6px}
+    .play-card .bp{flex:1;padding:9px;background:var(--green);color:#000;font-weight:700;font-size:12px;border:none;border-radius:5px;cursor:pointer;transition:all .2s}
+    .play-card .bp:hover{background:var(--green-bright)}
+    .play-card .bs{padding:9px 12px;background:var(--bg-elevated);border:1px solid var(--border-light);border-radius:5px;color:var(--text-secondary);font-size:10px;cursor:pointer;transition:all .2s}
+    .play-card .bs:hover{border-color:var(--cyan);color:var(--cyan)}
+    .info-row{display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px}
+    .info-row .il{color:var(--text-muted)}.info-row .iv{color:var(--text-primary);font-weight:500}
+    .agent-card{display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg-card);border-radius:6px;margin-bottom:4px;border:1px solid var(--border);transition:all .3s}
+    .agent-card.working{border-color:rgba(0,212,255,.35);background:rgba(0,212,255,.03)}
+    .agent-card.idle{opacity:.5}
+    .agent-av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+    .agent-av.gwen{background:linear-gradient(135deg,#76b900,#95d600)}
+    .agent-av.deep{background:linear-gradient(135deg,#00a5cc,#00d4ff)}
+    .agent-av.max{background:linear-gradient(135deg,#bb86fc,#9966ff)}
+    .agent-av.nemo{background:linear-gradient(135deg,#ff6b9d,#ff4477)}
+    .agent-av.tool{background:linear-gradient(135deg,#ffa000,#ffd700)}
+    .agent-nm{font-size:10px;font-weight:600}.agent-st{font-size:9px;color:var(--text-muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .agent-lc{font-size:8px;color:var(--cyan);margin-top:1px}
+    .metric-row{display:flex;justify-content:space-between;font-size:10px;margin-bottom:4px;color:var(--text-secondary)}
+    .metric-row strong{color:var(--text-primary)}.metric-row .up{color:var(--green)}
+    .bar-track2{height:3px;background:#1a1a3a;border-radius:2px;margin-top:2px;margin-bottom:8px;overflow:hidden}
+    .bf2{height:100%;border-radius:2px;transition:width .8s ease}
+    .bf2.g{background:linear-gradient(90deg,#76b900,#95d600)}.bf2.c{background:linear-gradient(90deg,#00a5cc,#00d4ff)}
+    .bf2.p{background:linear-gradient(90deg,#7744cc,#bb86fc)}.bf2.k{background:linear-gradient(90deg,#cc3366,#ff6b9d)}
+    .log-area{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-muted);max-height:160px;overflow-y:auto;padding:6px;background:#04040c;border-radius:5px;border:1px solid var(--border);scrollbar-width:thin;scrollbar-color:#1a1a3a transparent}
+    .log-area div{margin-bottom:2px;line-height:1.3}
+    .lc{color:var(--cyan)}.lg{color:var(--green-bright)}.lp{color:var(--pink)}.lo{color:var(--gold)}.lv{color:var(--purple)}
+    .wf-actions{display:flex;flex-direction:column;gap:4px}
+    .wf-actions button{padding:7px 10px;background:var(--bg-elevated);border:1px solid var(--border-light);border-radius:5px;color:var(--text-secondary);font-size:10px;cursor:pointer;transition:all .2s;font-family:inherit;text-align:left}
+    .wf-actions button:hover{border-color:var(--cyan);color:var(--cyan)}
+  </style>
+</head>
+<body>
+<div class="layout">
+  <!-- LEFT SIDEBAR -->
+  <div class="sidebar-left">
+    <h2>Workflow</h2>
+    <div class="step-list" id="stepList"></div>
+    <div class="sb-progress">
+      <div class="label">PROGRESS</div>
+      <div class="bar-track"><div class="bar-fill" id="progBar" style="width:0%"></div></div>
+      <div class="sb-pct" id="progPct">0% complete</div>
+    </div>
+  </div>
+
+  <!-- MAIN CANVAS -->
+  <div class="main-area">
+    <div class="top-bar">
+      <h1>⚙ THE MACHINE</h1>
+      <span class="tag">3D Lab Workflow Engine</span>
+      <span class="spacer"></span>
+      <span class="stat">Cycle <strong id="cycleNum">1</strong></span>
+      <span class="stat">Step <strong id="stepNum">0</strong>/<strong>8</strong></span>
+      <span class="stat" id="timerDisp">00:00</span>
+    </div>
+    <canvas id="mainCanvas"></canvas>
+    <div class="bottom-bar">
+      <button class="btn on" id="btnPlay" onclick="togglePlay()">▶ Play</button>
+      <button class="btn" id="btnPause" onclick="pauseExec()" disabled>⏸ Pause</button>
+      <button class="btn" onclick="stepOnce()">⏭ Step</button>
+      <button class="btn" onclick="resetExec()">↺ Reset</button>
+      <span class="spacer"></span>
+      <div class="speed-ctrl">Speed<input type="range" min="0.5" max="5" step="0.5" value="1" oninput="setSpeed(this.value)"><span class="speed-val" id="speedVal">1.0x</span></div>
+      <span class="spacer"></span>
+      <span class="stat">Agents: <strong id="agentsActive">0</strong>/5</span>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel-right">
+    <div class="psec">
+      <h3>Playback</h3>
+      <div class="play-card">
+        <button class="bp" onclick="togglePlay()" id="bp2">▶ Play</button>
+        <button class="bs" onclick="pauseExec()">⏸</button>
+        <button class="bs" onclick="resetExec()">↺</button>
+      </div>
+      <div style="margin-top:8px">
+        <div class="info-row"><span class="il">State</span><span class="iv" id="stateDisp" style="color:var(--cyan)">Idle</span></div>
+        <div class="info-row"><span class="il">Phase</span><span class="iv" id="phaseDisp">—</span></div>
+        <div class="info-row"><span class="il">Progress</span><span class="iv" id="progDisp">0%</span></div>
+      </div>
+    </div>
+    <div class="psec">
+      <h3>Status</h3>
+      <div class="info-row"><span class="il">Workflow</span><span class="iv">Self-Improvement</span></div>
+      <div class="info-row"><span class="il">Nodes</span><span class="iv">8</span></div>
+      <div class="info-row"><span class="il">Agents</span><span class="iv">5</span></div>
+    </div>
+    <div class="psec"><h3>Agents</h3><div id="agentCards"></div></div>
+    <div class="psec">
+      <h3>Metrics</h3>
+      <div class="metric-row"><span>Hypothesis Diversity</span><strong class="up" id="mDiv">—</strong></div>
+      <div class="bar-track2"><div class="bf2 c" id="bDiv" style="width:0%"></div></div>
+      <div class="metric-row"><span>Implementation Speed</span><strong class="up" id="mSpd">—</strong></div>
+      <div class="bar-track2"><div class="bf2 g" id="bSpd" style="width:0%"></div></div>
+      <div class="metric-row"><span>Validation Accuracy</span><strong id="mAcc">—</strong></div>
+      <div class="bar-track2"><div class="bf2 p" id="bAcc" style="width:0%"></div></div>
+      <div class="metric-row"><span>Avg Response</span><strong id="mLat">—</strong></div>
+      <div class="bar-track2"><div class="bf2 k" id="bLat" style="width:0%"></div></div>
+    </div>
+    <div class="psec"><h3>Activity Log</h3><div class="log-area" id="logArea"></div></div>
+    <div class="psec"><h3>Workflow</h3><div class="wf-actions"><button>⊕ Export JSON</button><button>⊕ Import JSON</button><button>✦ Save</button></div></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// THE MACHINE — Full Canvas 3D Isometric Lab Renderer
+// ═══════════════════════════════════════════════════════════
+
+const C = document.getElementById('mainCanvas');
+const ctx = C.getContext('2d');
+let W, H, dpr;
+
+// ─── Lab definitions ─────────────────────────────────────
+const LABS = [
+  { id:'data-ingest',   name:'Data Ingest Lab',        icon:'📡', color:'#00d4ff', accent:'#006688' },
+  { id:'hypothesis',    name:'Hypothesis Lab',          icon:'🧠', color:'#bb86fc', accent:'#6633aa' },
+  { id:'implement',     name:'Implement Lab',           icon:'⚡', color:'#76b900', accent:'#3a5c00' },
+  { id:'validation',    name:'Validation Lab',          icon:'🔬', color:'#4fc3f7', accent:'#1a6688' },
+  { id:'review-revert', name:'Review & Revert Lab',     icon:'⚖️', color:'#ff6b9d', accent:'#883344' },
+  { id:'agent-coord',   name:'Agent Coordination Lab',  icon:'🔗', color:'#ffd700', accent:'#887700' },
+  { id:'tooling',       name:'Tooling & Utility Lab',   icon:'🔧', color:'#ff8a65', accent:'#884422' },
+  { id:'knowledge',     name:'Knowledge Store',         icon:'📚', color:'#69f0ae', accent:'#228844' },
+];
+
+const AGENTS = [
+  { id:'gwen', name:'GWEN',    color:'#76b900', glow:'rgba(118,185,0,0.6)',  emoji:'🟢', cls:'gwen' },
+  { id:'deep', name:'DeepSeek',color:'#00d4ff', glow:'rgba(0,212,255,0.6)',  emoji:'🔵', cls:'deep' },
+  { id:'max',  name:'MAX',     color:'#bb86fc', glow:'rgba(187,134,252,0.6)',emoji:'🟣', cls:'max'  },
+  { id:'nemo', name:'NEMOTRON',color:'#ff6b9d', glow:'rgba(255,107,157,0.6)',emoji:'🔴', cls:'nemo' },
+  { id:'tool', name:'TOOLCALL',color:'#ffd700', glow:'rgba(255,215,0,0.6)',  emoji:'🟡', cls:'tool' },
+];
+
+const STEPS = [
+  { lab:0, agents:['gwen','tool'],        desc:'Scanning codebase metrics',       dur:3500 },
+  { lab:1, agents:['gwen','deep'],        desc:'Generating improvement hypotheses',dur:5000 },
+  { lab:5, agents:['nemo'],               desc:'Coordinating agent assignments',   dur:2500 },
+  { lab:2, agents:['gwen','deep','tool'], desc:'Implementing code changes',        dur:5500 },
+  { lab:3, agents:['deep','max'],         desc:'Running validation suites',        dur:4500 },
+  { lab:6, agents:['tool','gwen'],        desc:'Building deployment artifacts',    dur:3500 },
+  { lab:4, agents:['max','nemo'],         desc:'Reviewing results, keep/revert',   dur:4000 },
+  { lab:7, agents:['gwen','max'],         desc:'Storing learnings & patterns',     dur:3000 },
+];
+
+// ─── State ───────────────────────────────────────────────
+let playing=false, paused=false, curStep=-1, speed=1;
+let tStart=0, tElapsed=0, tInterval=null, stepTO=null;
+let labStates = LABS.map(()=>({state:'idle', agents:[], agentPositions:{}}));
+let particles = [];
+let neuralParticles = [];
+let time = 0;
+let graphData = LABS.map(()=> Array.from({length:20},()=>Math.random()));
+
+// ─── Resize ──────────────────────────────────────────────
+function resize(){
+  dpr = window.devicePixelRatio || 1;
+  W = C.offsetWidth; H = C.offsetHeight;
+  C.width = W * dpr; C.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ─── Isometric helpers ───────────────────────────────────
+function isoX(x,y){ return x-y; }
+function isoY(x,y,z){ return (x+y)*0.5 - z; }
+
+// ─── Draw a single 3D isometric lab ─────────────────────
+function drawLab(cx, cy, w, h, labIdx){
+  const lab = LABS[labIdx];
+  const ls = labStates[labIdx];
+  const isActive = ls.state === 'active';
+  const isDone = ls.state === 'done';
+  const col = lab.color;
+  const t = time;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  const lw = w, lh = h;
+  const pad = 6;
+  const innerW = lw - pad*2, innerH = lh - pad*2;
+
+  // ── Outer frame with glow ──
+  if(isActive){
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 25;
+  } else if(isDone){
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 12;
+  }
+  // Rounded rect background
+  roundRect(ctx, 0, 0, lw, lh, 10);
+  const bgGrad = ctx.createLinearGradient(0,0,lw,lh);
+  bgGrad.addColorStop(0, '#0a0a1a');
+  bgGrad.addColorStop(1, '#060612');
+  ctx.fillStyle = bgGrad;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Border
+  roundRect(ctx, 0, 0, lw, lh, 10);
+  ctx.strokeStyle = isActive ? col+'aa' : isDone ? col+'66' : '#1a1a3a';
+  ctx.lineWidth = isActive ? 2 : 1;
+  ctx.stroke();
+
+  // ── Isometric floor ──
+  const floorY = lh * 0.58;
+  const floorH = lh * 0.38;
+  ctx.save();
+  ctx.beginPath();
+  roundRect(ctx, pad, pad, innerW, innerH, 6);
+  ctx.clip();
+
+  // Floor with perspective grid
+  ctx.save();
+  ctx.translate(lw/2, floorY);
+  const gridSize = 14;
+  const rows = 8, cols = 12;
+  ctx.globalAlpha = isActive ? 0.35 : 0.15;
+  for(let r=0; r<rows; r++){
+    for(let c=-cols/2; c<cols/2; c++){
+      const fx = c * gridSize;
+      const fy = r * gridSize * 0.4;
+      const perspective = 1 + r * 0.08;
+      const px = fx * perspective;
+      const py = fy * perspective;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + gridSize*perspective, py);
+      ctx.lineTo(px + gridSize*perspective, py + gridSize*0.4*perspective);
+      ctx.lineTo(px, py + gridSize*0.4*perspective);
+      ctx.closePath();
+      ctx.strokeStyle = col + '40';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+
+  // ── Back wall ──
+  const wallTop = pad + 2;
+  const wallBottom = floorY - 6;
+  const wallGrad = ctx.createLinearGradient(0, wallTop, 0, wallBottom);
+  wallGrad.addColorStop(0, '#08081a');
+  wallGrad.addColorStop(1, '#0c0c22');
+  ctx.fillStyle = wallGrad;
+  ctx.fillRect(pad+4, wallTop, innerW-8, wallBottom-wallTop);
+
+  // Wall grid lines (subtle)
+  ctx.globalAlpha = 0.08;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 0.5;
+  for(let x = pad+20; x < pad+innerW-10; x+=18){
+    ctx.beginPath(); ctx.moveTo(x, wallTop+4); ctx.lineTo(x, wallBottom-2); ctx.stroke();
+  }
+  for(let y = wallTop+10; y < wallBottom; y+=14){
+    ctx.beginPath(); ctx.moveTo(pad+8, y); ctx.lineTo(pad+innerW-8, y); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // ── Holographic screens (3 screens on back wall) ──
+  const screens = [
+    {x: pad+10, y: wallTop+8, w: innerW*0.28, h: (wallBottom-wallTop)*0.55, type:'graph'},
+    {x: pad+innerW*0.35, y: wallTop+6, w: innerW*0.3, h: (wallBottom-wallTop)*0.65, type:'main'},
+    {x: pad+innerW*0.7, y: wallTop+10, w: innerW*0.24, h: (wallBottom-wallTop)*0.5, type:'data'},
+  ];
+
+  screens.forEach((scr, si) => {
+    // Screen glow
+    if(isActive){
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 15;
+    }
+    // Screen background
+    ctx.fillStyle = '#030310';
+    ctx.fillRect(scr.x, scr.y, scr.w, scr.h);
+    ctx.shadowBlur = 0;
+
+    // Screen border (holographic)
+    ctx.strokeStyle = col + (isActive ? '88' : '44');
+    ctx.lineWidth = 1;
+    ctx.strokeRect(scr.x, scr.y, scr.w, scr.h);
+
+    // Scanlines
+    ctx.globalAlpha = 0.06;
+    for(let sy = 0; sy < scr.h; sy += 2){
+      ctx.fillStyle = col;
+      ctx.fillRect(scr.x, scr.y + sy, scr.w, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    // Screen content
+    if(scr.type === 'graph' || scr.type === 'main'){
+      // Animated bar graph
+      const bars = graphData[labIdx];
+      const barW = scr.w / (bars.length + 2);
+      const maxBarH = scr.h * 0.7;
+      bars.forEach((v, bi) => {
+        const phase = Math.sin(t*0.002 + bi*0.5 + labIdx) * 0.3 + 0.7;
+        const bh = v * phase * maxBarH;
+        const bx = scr.x + barW * (bi+1);
+        const by = scr.y + scr.h - 4 - bh;
+        const barGrad = ctx.createLinearGradient(bx, by+bh, bx, by);
+        barGrad.addColorStop(0, col + '22');
+        barGrad.addColorStop(1, col + 'cc');
+        ctx.fillStyle = barGrad;
+        ctx.fillRect(bx, by, barW*0.7, bh);
+      });
+      // Line overlay
+      ctx.beginPath();
+      ctx.globalAlpha = 0.6;
+      bars.forEach((v, bi) => {
+        const phase = Math.sin(t*0.003 + bi*0.4 + labIdx*2) * 0.2 + 0.8;
+        const px = scr.x + (scr.w/(bars.length)) * (bi+0.5);
+        const py = scr.y + scr.h - 6 - v * phase * maxBarH;
+        bi===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+      });
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    if(scr.type === 'data'){
+      // Scrolling data lines
+      const lineH = 6;
+      const numLines = Math.floor(scr.h / lineH);
+      for(let li = 0; li < numLines; li++){
+        const ly = scr.y + 4 + li * lineH;
+        const lw = (Math.sin(t*0.001 + li*1.2 + labIdx*3) * 0.4 + 0.6) * scr.w * 0.8;
+        ctx.globalAlpha = 0.3 + Math.sin(t*0.002 + li)*0.15;
+        ctx.fillStyle = col;
+        ctx.fillRect(scr.x + 3, ly, lw, 2);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Screen top edge glow
+    const edgeGrad = ctx.createLinearGradient(scr.x, scr.y, scr.x, scr.y+4);
+    edgeGrad.addColorStop(0, col + '44');
+    edgeGrad.addColorStop(1, 'transparent');
+    ctx.fillStyle = edgeGrad;
+    ctx.fillRect(scr.x, scr.y, scr.w, 4);
+  });
+
+  // ── Holographic projection (floating above desk) ──
+  if(isActive || isDone){
+    const holoX = lw/2;
+    const holoY = floorY - 20;
+    // Projection cone
+    ctx.beginPath();
+    ctx.moveTo(holoX - 20, holoY + 10);
+    ctx.lineTo(holoX, holoY - 25);
+    ctx.lineTo(holoX + 20, holoY + 10);
+    ctx.closePath();
+    const coneGrad = ctx.createLinearGradient(holoX, holoY-25, holoX, holoY+10);
+    coneGrad.addColorStop(0, col + '44');
+    coneGrad.addColorStop(1, col + '00');
+    ctx.fillStyle = coneGrad;
+    ctx.globalAlpha = isActive ? 0.6 : 0.25;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Floating holographic element
+    const floatY = Math.sin(t*0.003 + labIdx)*3;
+    ctx.beginPath();
+    ctx.arc(holoX, holoY - 15 + floatY, 8, 0, Math.PI*2);
+    ctx.fillStyle = col + '33';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(holoX, holoY - 15 + floatY, 4, 0, Math.PI*2);
+    ctx.fillStyle = col + '88';
+    ctx.fill();
+
+    // Orbiting ring
+    ctx.save();
+    ctx.translate(holoX, holoY - 15 + floatY);
+    ctx.rotate(t * 0.004 + labIdx);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 14, 5, 0, 0, Math.PI*2);
+    ctx.strokeStyle = col + '66';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Side wall elements (equipment/shelves) ──
+  // Left side equipment rack
+  ctx.fillStyle = '#0e0e20';
+  ctx.fillRect(pad+2, wallBottom-16, 8, 18);
+  ctx.strokeStyle = col + '33';
+  ctx.lineWidth = 0.5;
+  ctx.strokeRect(pad+2, wallBottom-16, 8, 18);
+  // Indicator lights on rack
+  for(let li=0; li<3; li++){
+    ctx.beginPath();
+    ctx.arc(pad+6, wallBottom-12+li*5, 1.5, 0, Math.PI*2);
+    ctx.fillStyle = isActive ? col : '#333';
+    ctx.fill();
+  }
+
+  // Right side equipment
+  ctx.fillStyle = '#0d0d1e';
+  ctx.fillRect(pad+innerW-10, wallBottom-14, 8, 16);
+  ctx.strokeStyle = col + '22';
+  ctx.strokeRect(pad+innerW-10, wallBottom-14, 8, 16);
+
+  // ── Desk/table (on floor) ──
+  const deskY = floorY + 4;
+  const deskW = innerW * 0.5;
+  const deskX = (lw - deskW)/2;
+  ctx.fillStyle = '#12122a';
+  ctx.fillRect(deskX, deskY, deskW, 6);
+  ctx.strokeStyle = col + '22';
+  ctx.lineWidth = 0.5;
+  ctx.strokeRect(deskX, deskY, deskW, 6);
+  // Desk edge glow
+  if(isActive){
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = col + '11';
+    ctx.fillRect(deskX, deskY, deskW, 1);
+    ctx.shadowBlur = 0;
+  }
+
+  // ── Agent figures ──
+  const agentList = ls.agents;
+  agentList.forEach((aid, ai) => {
+    const ag = AGENTS.find(a=>a.id===aid);
+    if(!ag) return;
+    // Position agents on the floor
+    const positions = ls.agentPositions[aid];
+    let ax, ay;
+    if(positions){
+      ax = positions.x;
+      ay = positions.y;
+    } else {
+      const spread = innerW * 0.6;
+      ax = (lw - spread)/2 + (ai/(agentList.length))*spread + 8;
+      ay = floorY + 18 + Math.random()*10;
+    }
+    drawAgent(ax, ay, ag.color, ag.glow, ag.name, isActive, t + ai*500);
+  });
+
+  // ── Neural core (for lab 5 — Agent Coordination) ──
+  if(labIdx === 5){
+    drawNeuralCore(lw/2, floorY - 5, isActive, col, t);
+  }
+
+  // ── Floating data particles inside lab ──
+  if(isActive){
+    for(let pi=0; pi<6; pi++){
+      const px = pad + 15 + Math.sin(t*0.002 + pi*1.5) * (innerW*0.35) + innerW/2;
+      const py = wallTop + 15 + Math.cos(t*0.003 + pi*2.1) * 15 + (wallBottom-wallTop)/2 - 10;
+      const ps = Math.sin(t*0.004 + pi) * 0.5 + 1.5;
+      ctx.beginPath();
+      ctx.arc(px, py, ps, 0, Math.PI*2);
+      ctx.fillStyle = col;
+      ctx.globalAlpha = Math.sin(t*0.005 + pi*0.8) * 0.3 + 0.4;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  ctx.restore(); // clip
+  
+  // ── Header with name ──
+  const headerH = 26;
+  const hGrad = ctx.createLinearGradient(0, 0, lw, 0);
+  hGrad.addColorStop(0, '#0a0a18');
+  hGrad.addColorStop(1, '#080816');
+  ctx.fillStyle = hGrad;
+  ctx.fillRect(0, 0, lw, headerH);
+  // Header bottom border
+  ctx.fillStyle = col + (isActive ? '55' : '22');
+  ctx.fillRect(0, headerH-1, lw, 1);
+
+  // Status dot
+  ctx.beginPath();
+  ctx.arc(14, headerH/2, 4, 0, Math.PI*2);
+  if(isActive){
+    ctx.fillStyle = col;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 8;
+  } else if(isDone){
+    ctx.fillStyle = '#76b900';
+    ctx.shadowColor = '#76b900';
+    ctx.shadowBlur = 6;
+  } else {
+    ctx.fillStyle = '#2a2a4a';
+  }
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Lab name
+  ctx.font = '600 9px Inter, system-ui';
+  ctx.fillStyle = isActive ? col : isDone ? '#76b900' : '#888';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(lab.name.toUpperCase(), 24, headerH/2);
+
+  // ── Bottom info ──
+  const infoH = 18;
+  const infoY = lh - infoH;
+  ctx.fillStyle = '#05050e' + 'dd';
+  ctx.fillRect(0, infoY, lw, infoH);
+  ctx.font = '500 8px Inter';
+  ctx.fillStyle = '#555';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`Agents: ${agentList.length}`, 8, infoY + infoH/2);
+  ctx.fillStyle = col + '88';
+  ctx.textAlign = 'right';
+  ctx.fillText(isActive ? 'ACTIVE' : isDone ? 'COMPLETE' : 'IDLE', lw-8, infoY + infoH/2);
+  ctx.textAlign = 'left';
+
+  ctx.restore();
+}
+
+// ─── Draw agent figure ───────────────────────────────────
+function drawAgent(x, y, color, glow, name, active, t){
+  // Body glow
+  if(active){
+    ctx.beginPath();
+    ctx.arc(x, y-8, 12, 0, Math.PI*2);
+    const g = ctx.createRadialGradient(x, y-8, 0, x, y-8, 12);
+    g.addColorStop(0, glow);
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.globalAlpha = 0.4 + Math.sin(t*0.006)*0.15;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Body
+  ctx.fillStyle = color + '99';
+  ctx.beginPath();
+  ctx.moveTo(x-3.5, y-4);
+  ctx.lineTo(x+3.5, y-4);
+  ctx.lineTo(x+3, y+6);
+  ctx.lineTo(x-3, y+6);
+  ctx.closePath();
+  ctx.fill();
+
+  // Head
+  ctx.beginPath();
+  ctx.arc(x, y-8, 4, 0, Math.PI*2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  if(active){
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  // Visor / eye line
+  ctx.fillStyle = '#ffffff44';
+  ctx.fillRect(x-2.5, y-9, 5, 1.5);
+
+  // Arms (slight animation when active)
+  const armAngle = active ? Math.sin(t*0.008)*0.3 : 0;
+  ctx.save();
+  ctx.translate(x-3.5, y-2);
+  ctx.rotate(-0.4 + armAngle);
+  ctx.fillStyle = color + '77';
+  ctx.fillRect(-1, 0, 2, 6);
+  ctx.restore();
+  ctx.save();
+  ctx.translate(x+3.5, y-2);
+  ctx.rotate(0.4 - armAngle);
+  ctx.fillStyle = color + '77';
+  ctx.fillRect(-1, 0, 2, 6);
+  ctx.restore();
+
+  // Name tag
+  ctx.font = '700 6px Inter';
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.globalAlpha = 0.8;
+  ctx.fillText(name, x, y+8);
+  ctx.globalAlpha = 1;
+  ctx.textAlign = 'left';
+}
+
+// ─── Neural Core (holographic brain) ────────────────────
+function drawNeuralCore(cx, cy, active, col, t){
+  const radius = 16;
+
+  // Outer glow
+  const outerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius*2.5);
+  outerGlow.addColorStop(0, col + '33');
+  outerGlow.addColorStop(1, 'transparent');
+  ctx.fillStyle = outerGlow;
+  ctx.globalAlpha = active ? 0.6 : 0.2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius*2.5, 0, Math.PI*2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // Orbiting rings
+  for(let r=0; r<3; r++){
+    ctx.save();
+    ctx.translate(cx, cy);
+    const angle = t*0.003*(r%2===0?1:-1) + r*2.09;
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radius + r*4, (radius + r*4)*0.35, 0, 0, Math.PI*2);
+    ctx.strokeStyle = [col, '#00d4ff', '#bb86fc'][r] + (active ? '66' : '22');
+    ctx.lineWidth = active ? 1.5 : 0.8;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Core
+  ctx.beginPath();
+  ctx.arc(cx, cy, 5, 0, Math.PI*2);
+  const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 5);
+  coreGrad.addColorStop(0, active ? col : '#333');
+  coreGrad.addColorStop(1, active ? col + '44' : '#111');
+  ctx.fillStyle = coreGrad;
+  ctx.fill();
+  if(active){
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 20;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  // Neural connection particles
+  if(active){
+    for(let np=0; np<8; np++){
+      const a = t*0.005 + np * Math.PI/4;
+      const dist = radius + Math.sin(t*0.003 + np)*6;
+      const nx = cx + Math.cos(a) * dist;
+      const ny = cy + Math.sin(a) * dist * 0.4;
+      ctx.beginPath();
+      ctx.arc(nx, ny, 1.5, 0, Math.PI*2);
+      ctx.fillStyle = col;
+      ctx.globalAlpha = Math.sin(t*0.006 + np)*0.3 + 0.5;
+      ctx.fill();
+      // Connection line to core
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(nx, ny);
+      ctx.strokeStyle = col + '33';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ─── Communication particles between labs ───────────────
+function spawnComm(fromIdx, toIdx, color){
+  for(let i=0; i<5; i++){
+    particles.push({
+      fromLab: fromIdx, toLab: toIdx,
+      progress: -i*0.12,
+      speed: 0.006 + Math.random()*0.004,
+      color: color || '#00d4ff',
+      size: 2 + Math.random()*2,
+      trail: [],
+      offset: (Math.random()-0.5)*20,
+    });
+  }
+}
+
+function drawParticles(labRects){
+  particles = particles.filter(p => p.progress < 1.2);
+  particles.forEach(p => {
+    p.progress += p.speed * speed;
+    if(p.progress < 0) return;
+    const t = Math.min(1, p.progress);
+    const from = labRects[p.fromLab];
+    const to = labRects[p.toLab];
+    if(!from || !to) return;
+
+    const fx = from.cx, fy = from.cy;
+    const tx = to.cx, ty = to.cy;
+    // Curved path
+    const mx = (fx+tx)/2 + p.offset;
+    const my = (fy+ty)/2 - 30 + p.offset*0.5;
+    const tt = t;
+    const x = (1-tt)*(1-tt)*fx + 2*(1-tt)*tt*mx + tt*tt*tx;
+    const y = (1-tt)*(1-tt)*fy + 2*(1-tt)*tt*my + tt*tt*ty;
+
+    p.trail.push({x,y});
+    if(p.trail.length > 8) p.trail.shift();
+
+    // Trail
+    if(p.trail.length > 1){
+      ctx.beginPath();
+      ctx.moveTo(p.trail[0].x, p.trail[0].y);
+      p.trail.forEach(pt => ctx.lineTo(pt.x, pt.y));
+      ctx.strokeStyle = p.color + '30';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Particle
+    const alpha = t < 0.1 ? t*10 : t > 0.85 ? (1-t)*6.67 : 1;
+    ctx.globalAlpha = alpha * 0.9;
+    ctx.beginPath();
+    ctx.arc(x, y, p.size, 0, Math.PI*2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+    // Glow
+    ctx.beginPath();
+    ctx.arc(x, y, p.size*3, 0, Math.PI*2);
+    const gl = ctx.createRadialGradient(x, y, 0, x, y, p.size*3);
+    gl.addColorStop(0, p.color + '44');
+    gl.addColorStop(1, p.color + '00');
+    ctx.fillStyle = gl;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+}
+
+// ─── Ambient neural net background ──────────────────────
+let bgNodes = [];
+function initBgNodes(){
+  bgNodes = [];
+  for(let i=0; i<40; i++){
+    bgNodes.push({
+      x: Math.random() * 2000,
+      y: Math.random() * 1200,
+      vx: (Math.random()-0.5)*0.2,
+      vy: (Math.random()-0.5)*0.2,
+    });
+  }
+}
+initBgNodes();
+
+function drawBgNet(){
+  ctx.globalAlpha = 0.06;
+  bgNodes.forEach(n => {
+    n.x += n.vx; n.y += n.vy;
+    if(n.x < 0 || n.x > W) n.vx *= -1;
+    if(n.y < 0 || n.y > H) n.vy *= -1;
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, 1.5, 0, Math.PI*2);
+    ctx.fillStyle = '#00d4ff';
+    ctx.fill();
+  });
+  // Connections
+  ctx.lineWidth = 0.5;
+  ctx.strokeStyle = '#00d4ff';
+  for(let i=0; i<bgNodes.length; i++){
+    for(let j=i+1; j<bgNodes.length; j++){
+      const dx = bgNodes[i].x - bgNodes[j].x;
+      const dy = bgNodes[i].y - bgNodes[j].y;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if(d < 120){
+        ctx.globalAlpha = (1 - d/120)*0.04;
+        ctx.beginPath();
+        ctx.moveTo(bgNodes[i].x, bgNodes[i].y);
+        ctx.lineTo(bgNodes[j].x, bgNodes[j].y);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ─── Utility ─────────────────────────────────────────────
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.arcTo(x+w, y, x+w, y+r, r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
+  ctx.lineTo(x+r, y+h);
+  ctx.arcTo(x, y+h, x, y+h-r, r);
+  ctx.lineTo(x, y+r);
+  ctx.arcTo(x, y, x+r, y, r);
+  ctx.closePath();
+}
+
+// ─── Graph data animation ────────────────────────────────
+setInterval(()=>{
+  graphData.forEach(arr => {
+    arr.shift();
+    arr.push(Math.random()*0.7 + 0.3);
+  });
+}, 500);
+
+// ─── Main render loop ────────────────────────────────────
+const labRects = [];
+function render(){
+  time = performance.now();
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  const bgGrad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.7);
+  bgGrad.addColorStop(0, '#080818');
+  bgGrad.addColorStop(1, '#030308');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Neural net background
+  drawBgNet();
+
+  // Layout: 4x2 grid with gaps
+  const gap = 14;
+  const cols = 4, rows = 2;
+  const margin = 16;
+  const totalW = W - margin*2;
+  const totalH = H - margin*2;
+  const cellW = (totalW - gap*(cols-1)) / cols;
+  const cellH = (totalH - gap*(rows-1)) / rows;
+
+  labRects.length = 0;
+  for(let i=0; i<8; i++){
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = margin + col * (cellW + gap);
+    const y = margin + row * (cellH + gap);
+    labRects.push({ x, y, w: cellW, h: cellH, cx: x + cellW/2, cy: y + cellH/2 });
+    drawLab(x, y, cellW, cellH, i);
+  }
+
+  // Communication particles
+  drawParticles(labRects);
+
+  // Ambient particles between labs
+  if(playing && Math.random() < 0.02 * speed){
+    const from = Math.floor(Math.random()*8);
+    let to = Math.floor(Math.random()*8);
+    if(to === from) to = (to+1)%8;
+    spawnComm(from, to, LABS[from].color);
+  }
+
+  requestAnimationFrame(render);
+}
+
+// ─── Sidebar / Panel builders ────────────────────────────
+function buildSteps(){
+  const list = document.getElementById('stepList');
+  list.innerHTML = '';
+  STEPS.forEach((s,i)=>{
+    const el = document.createElement('div');
+    el.className = 'step-item'; el.id = `si-${i}`;
+    el.innerHTML = `<div class="step-dot"></div><div><div class="step-label">${LABS[s.lab].name}</div><div class="step-sub">${s.agents.map(a=>AGENTS.find(ag=>ag.id===a).name).join(', ')}</div></div>`;
+    list.appendChild(el);
+  });
+}
+
+function buildAgentCards(){
+  const c = document.getElementById('agentCards');
+  c.innerHTML = '';
+  AGENTS.forEach(a=>{
+    const el = document.createElement('div');
+    el.className = 'agent-card idle'; el.id = `ac-${a.id}`;
+    el.innerHTML = `<div class="agent-av ${a.cls}">${a.emoji}</div><div style="flex:1;min-width:0"><div class="agent-nm">${a.name}</div><div class="agent-st" id="as-${a.id}">Idle</div><div class="agent-lc" id="al-${a.id}">—</div></div>`;
+    c.appendChild(el);
+  });
+}
+
+function updateAgentCards(){
+  AGENTS.forEach(a=>{
+    const card = document.getElementById(`ac-${a.id}`);
+    const stEl = document.getElementById(`as-${a.id}`);
+    const lcEl = document.getElementById(`al-${a.id}`);
+    const isW = labStates.some(ls => ls.agents.includes(a.id) && ls.state==='active');
+    card.className = `agent-card ${isW ? 'working' : 'idle'}`;
+    stEl.textContent = isW ? 'Working' : 'Idle';
+    stEl.style.color = isW ? '#00d4ff' : '';
+    const lab = labStates.findIndex(ls => ls.agents.includes(a.id));
+    lcEl.textContent = lab >= 0 ? LABS[lab].name : '—';
+  });
+  document.getElementById('agentsActive').textContent = labStates.reduce((s,ls)=>s+(ls.state==='active'?ls.agents.length:0),0);
+}
+
+function updateMetrics(step){
+  const pct = ((step+1)/STEPS.length*100);
+  const d=(60+Math.random()*32).toFixed(1), s=(70+Math.random()*25).toFixed(0), a=(75+Math.random()*20).toFixed(1), l=(200+Math.random()*300).toFixed(0);
+  document.getElementById('mDiv').textContent=d+'%'; document.getElementById('bDiv').style.width=d+'%';
+  document.getElementById('mSpd').textContent=s+'%'; document.getElementById('bSpd').style.width=s+'%';
+  document.getElementById('mAcc').textContent=a+'%'; document.getElementById('bAcc').style.width=a+'%';
+  document.getElementById('mLat').textContent=l+'ms'; document.getElementById('bLat').style.width=Math.min(100,l/5)+'%';
+  document.getElementById('progBar').style.width=pct+'%';
+  document.getElementById('progPct').textContent=Math.round(pct)+'% complete';
+  document.getElementById('progDisp').textContent=Math.round(pct)+'%';
+}
+
+function log(msg, cls=''){
+  const area = document.getElementById('logArea');
+  const div = document.createElement('div'); div.className = cls;
+  const ts = new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  div.textContent = `[${ts}] ${msg}`;
+  area.appendChild(div); area.scrollTop = area.scrollHeight;
+}
+
+// ─── Execution ───────────────────────────────────────────
+async function execStep(si){
+  if(si >= STEPS.length){
+    playing = false; updateBtns();
+    document.getElementById('stateDisp').textContent='Complete';
+    document.getElementById('stateDisp').style.color='#76b900';
+    log('✓ Workflow cycle complete!','lg');
+    return;
+  }
+  curStep = si;
+  const step = STEPS[si], lab = LABS[step.lab];
+
+  // Sidebar
+  document.querySelectorAll('.step-item').forEach((el,i)=>{
+    el.classList.remove('active');
+    if(i<si) el.classList.add('completed');
+    if(i===si) el.classList.add('active');
+  });
+
+  document.getElementById('stepNum').textContent = si+1;
+  document.getElementById('phaseDisp').textContent = lab.name;
+  document.getElementById('stateDisp').textContent = 'Running';
+  document.getElementById('stateDisp').style.color = '#00d4ff';
+
+  // Activate lab
+  labStates[step.lab].state = 'active';
+  labStates[step.lab].agents = [...step.agents];
+
+  // Position agents
+  const spread = 0.6;
+  step.agents.forEach((aid,ai)=>{
+    // Approximate positions within lab cell — will be computed in drawLab
+    labStates[step.lab].agentPositions[aid] = {
+      x: 0.3 * (labRects[step.lab]?.w||200) + ai * 25,
+      y: (labRects[step.lab]?.h||150)*0.62 + 14 + Math.random()*8,
+    };
+  });
+
+  updateAgentCards();
+
+  // Particles from previous lab
+  if(si > 0){
+    const prev = STEPS[si-1].lab;
+    for(let i=0; i<8; i++) setTimeout(()=>spawnComm(prev, step.lab, lab.color), i*150);
+  }
+
+  log(`→ ${lab.name}: ${step.desc}`, 'lc');
+  step.agents.forEach(aid=>{
+    log(`  ${AGENTS.find(a=>a.id===aid).name} → ${lab.name}`, 'lg');
+  });
+  updateMetrics(si);
+
+  await new Promise(resolve=>{
+    stepTO = setTimeout(()=>{
+      labStates[step.lab].state = 'done';
+      labStates[step.lab].agents = [];
+      labStates[step.lab].agentPositions = {};
+      updateAgentCards();
+      log(`✓ ${lab.name} complete`, 'lo');
+      resolve();
+    }, step.dur / speed);
+  });
+
+  if(playing && !paused) await execStep(si+1);
+}
+
+function togglePlay(){
+  if(playing && !paused){ pauseExec(); return; }
+  if(paused){ paused=false; playing=true; updateBtns(); execStep(curStep+1); startTimer(); return; }
+  playing=true; paused=false; updateBtns();
+  log('▶ Workflow started','lg'); startTimer(); execStep(0);
+}
+function pauseExec(){
+  paused=true; playing=false; clearTimeout(stepTO); stopTimer(); updateBtns();
+  document.getElementById('stateDisp').textContent='Paused';
+  document.getElementById('stateDisp').style.color='#ffd700';
+  log('⏸ Paused','lo');
+}
+function resetExec(){
+  playing=false; paused=false; curStep=-1; clearTimeout(stepTO); stopTimer(); tElapsed=0;
+  document.getElementById('timerDisp').textContent='00:00';
+  labStates.forEach(ls=>{ ls.state='idle'; ls.agents=[]; ls.agentPositions={}; });
+  updateAgentCards();
+  document.querySelectorAll('.step-item').forEach(el=>el.classList.remove('active','completed'));
+  document.getElementById('progBar').style.width='0%';
+  document.getElementById('progPct').textContent='0% complete';
+  document.getElementById('progDisp').textContent='0%';
+  document.getElementById('stepNum').textContent='0';
+  document.getElementById('stateDisp').textContent='Idle';
+  document.getElementById('stateDisp').style.color='#00d4ff';
+  document.getElementById('phaseDisp').textContent='—';
+  updateBtns(); log('↺ Reset','lp');
+}
+function stepOnce(){
+  if(playing) return;
+  playing=true; paused=false;
+  const ns = curStep+1;
+  if(ns >= STEPS.length){playing=false;return;}
+  execStep(ns).then(()=>{playing=false;paused=true;updateBtns()});
+}
+function setSpeed(v){ speed=parseFloat(v); document.getElementById('speedVal').textContent=v+'x'; }
+function updateBtns(){
+  const b=document.getElementById('btnPlay'), b2=document.getElementById('bp2'), bp=document.getElementById('btnPause');
+  if(playing&&!paused){b.textContent='⏸ Pause';b.classList.add('on');b2.textContent='⏸ Pause';bp.disabled=false;}
+  else{b.textContent='▶ Play';b.classList.remove('on');b2.textContent='▶ Play';bp.disabled=true;}
+}
+function startTimer(){
+  tStart=Date.now()-tElapsed;
+  tInterval=setInterval(()=>{
+    tElapsed=Date.now()-tStart;
+    const s=Math.floor(tElapsed/1000),m=Math.floor(s/60);
+    document.getElementById('timerDisp').textContent=String(m).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+  },200);
+}
+function stopTimer(){clearInterval(tInterval);}
+
+// ─── Init ────────────────────────────────────────────────
+buildSteps(); buildAgentCards();
+log('System initialized','lg');
+log('8 labs ready, 5 agents standing by','lc');
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - LOCAL AI Orchestrator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0d0d0d;
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+        .settings-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #76b900;
+            padding-bottom: 20px;
+        }
+        .header h1 {
+            font-size: 2em;
+            color: #76b900;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .stat-card .number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #76b900;
+        }
+        .stat-card .label {
+            font-size: 0.9em;
+            color: #999;
+            margin-top: 5px;
+        }
+        .section {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 1.3em;
+            color: #76b900;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+        .feature-item {
+            background: #0d0d0d;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+        }
+        .feature-item:hover {
+            border-color: #76b900;
+            background: #151515;
+        }
+        .feature-item input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #76b900;
+        }
+        .feature-label {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            cursor: pointer;
+            flex: 1;
+        }
+        .feature-name {
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+        .feature-desc {
+            font-size: 0.85em;
+            color: #888;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+        .status-enabled {
+            background: rgba(118, 185, 0, 0.2);
+            color: #76b900;
+        }
+        .status-disabled {
+            background: rgba(200, 200, 200, 0.1);
+            color: #888;
+        }
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: #76b900;
+            color: #0d0d0d;
+            font-weight: bold;
+        }
+        .btn-primary:hover {
+            background: #8fd621;
+        }
+        .btn-secondary {
+            background: #333;
+            color: #e0e0e0;
+            border: 1px solid #555;
+        }
+        .btn-secondary:hover {
+            background: #444;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #76b900;
+            color: #0d0d0d;
+            padding: 15px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            display: none;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <div class="header">
+            <h1>⚙️ Feature Settings</h1>
+            <div style="margin-left: auto; font-size: 0.9em; color: #888;">
+                All 26 systems across 8 sprints
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="number" id="stat-enabled">26</div>
+                <div class="label">Enabled</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="stat-disabled">0</div>
+                <div class="label">Disabled</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="stat-total">26</div>
+                <div class="label">Total Features</div>
+            </div>
+        </div>
+
+        <!-- Foundation -->
+        <div class="section">
+            <div class="section-title">🏗️ Phase 0: Foundation</div>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="TOOL_VALIDATION" data-phase="0">
+                    <label class="feature-label">
+                        <span class="feature-name">Tool Validation</span>
+                        <span class="feature-desc">Pydantic input validation on tools</span>
+                    </label>
+                    <span class="status-badge status-enabled">0A</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="PERMISSION_SYSTEM" data-phase="0">
+                    <label class="feature-label">
+                        <span class="feature-name">Permission System</span>
+                        <span class="feature-desc">Permission gates on tool calls</span>
+                    </label>
+                    <span class="status-badge status-enabled">0C</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 1: Pipeline -->
+        <div class="section">
+            <div class="section-title">🔄 Phase 1: Core Pipeline</div>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="STREAMING_ALL_MODES" data-phase="1">
+                    <label class="feature-label">
+                        <span class="feature-name">Response Streaming</span>
+                        <span class="feature-desc">SSE streaming for all chat modes</span>
+                    </label>
+                    <span class="status-badge status-enabled">1A</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="CONTEXT_COMPACTION" data-phase="1">
+                    <label class="feature-label">
+                        <span class="feature-name">Context Compaction</span>
+                        <span class="feature-desc">Auto-summarize long conversations</span>
+                    </label>
+                    <span class="status-badge status-enabled">1C</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="RETRY_WITH_BACKOFF" data-phase="1">
+                    <label class="feature-label">
+                        <span class="feature-name">Retry with Backoff</span>
+                        <span class="feature-desc">Exponential backoff on failures</span>
+                    </label>
+                    <span class="status-badge status-enabled">1B</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="TOKEN_TRACKING" data-phase="1">
+                    <label class="feature-label">
+                        <span class="feature-name">Token Tracking</span>
+                        <span class="feature-desc">Count tokens per turn & cost</span>
+                    </label>
+                    <span class="status-badge status-enabled">4E</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 2: Tools -->
+        <div class="section">
+            <div class="section-title">🔧 Phase 2: New Capabilities</div>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="BASH_TOOL" data-phase="2">
+                    <label class="feature-label">
+                        <span class="feature-name">Bash Execution</span>
+                        <span class="feature-desc">Subprocess execution tool</span>
+                    </label>
+                    <span class="status-badge status-enabled">2A</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="FILE_WRITE_TOOL" data-phase="2">
+                    <label class="feature-label">
+                        <span class="feature-name">File Write</span>
+                        <span class="feature-desc">File creation tool</span>
+                    </label>
+                    <span class="status-badge status-enabled">2B</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="FILE_EDIT_TOOL" data-phase="2">
+                    <label class="feature-label">
+                        <span class="feature-name">File Edit</span>
+                        <span class="feature-desc">Targeted file editing</span>
+                    </label>
+                    <span class="status-badge status-enabled">2B</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="CONTEXT_COLLECTION" data-phase="2">
+                    <label class="feature-label">
+                        <span class="feature-name">Context Collection</span>
+                        <span class="feature-desc">Auto-inject workspace state</span>
+                    </label>
+                    <span class="status-badge status-enabled">2C</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="BACKGROUND_TASKS" data-phase="2">
+                    <label class="feature-label">
+                        <span class="feature-name">Background Tasks</span>
+                        <span class="feature-desc">Async task runner</span>
+                    </label>
+                    <span class="status-badge status-enabled">2D</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 3: Orchestration -->
+        <div class="section">
+            <div class="section-title">🎭 Phase 3: Multi-Agent Coordinator</div>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="COORDINATOR_MODE" data-phase="3">
+                    <label class="feature-label">
+                        <span class="feature-name">Coordinator Pattern</span>
+                        <span class="feature-desc">Parallel agent coordination</span>
+                    </label>
+                    <span class="status-badge status-enabled">3A</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="SELF_VERIFICATION" data-phase="3">
+                    <label class="feature-label">
+                        <span class="feature-name">Self-Verification</span>
+                        <span class="feature-desc">Post-generation validation</span>
+                    </label>
+                    <span class="status-badge status-enabled">3B</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="DREAM_TASK" data-phase="3">
+                    <label class="feature-label">
+                        <span class="feature-name">DreamTask</span>
+                        <span class="feature-desc">Idle-time pre-processing</span>
+                    </label>
+                    <span class="status-badge status-enabled">6B</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 4: Interface -->
+        <div class="section">
+            <div class="section-title">🎨 Phase 4: UX & Interface</div>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="SESSION_PAGINATION" data-phase="4">
+                    <label class="feature-label">
+                        <span class="feature-name">Session Pagination</span>
+                        <span class="feature-desc">Paginated conversation history</span>
+                    </label>
+                    <span class="status-badge status-enabled">4B</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="CLI_NDJSON" data-phase="4">
+                    <label class="feature-label">
+                        <span class="feature-name">CLI NDJSON</span>
+                        <span class="feature-desc">Structured CLI output</span>
+                    </label>
+                    <span class="status-badge status-enabled">4C</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 5: Extensibility -->
+        <div class="section">
+            <div class="section-title">🔌 Phase 5: IDE Bridge & Extensibility</div>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="BRIDGE_MODE" data-phase="5">
+                    <label class="feature-label">
+                        <span class="feature-name">Bridge Mode</span>
+                        <span class="feature-desc">VS Code integration</span>
+                    </label>
+                    <span class="status-badge status-enabled">5A</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="MCP_CLIENT" data-phase="5">
+                    <label class="feature-label">
+                        <span class="feature-name">MCP Client</span>
+                        <span class="feature-desc">Consume external MCP tools</span>
+                    </label>
+                    <span class="status-badge status-enabled">5B</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="MCP_SERVER" data-phase="5">
+                    <label class="feature-label">
+                        <span class="feature-name">MCP Server</span>
+                        <span class="feature-desc">Expose tools via MCP protocol</span>
+                    </label>
+                    <span class="status-badge status-enabled">5B</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 6: Fun -->
+        <div class="section">
+            <div class="section-title">🎮 Phase 6: Advanced Features</div>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="BUDDY_COMPANION" data-phase="6">
+                    <label class="feature-label">
+                        <span class="feature-name">Buddy Companion</span>
+                        <span class="feature-desc">Procedural companion sprite</span>
+                    </label>
+                    <span class="status-badge status-enabled">6C</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="VOICE_INPUT" data-phase="6">
+                    <label class="feature-label">
+                        <span class="feature-name">Voice Input</span>
+                        <span class="feature-desc">Whisper STT transcription</span>
+                    </label>
+                    <span class="status-badge status-enabled">6D</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="ARTIFACT_TEMPLATES" data-phase="6">
+                    <label class="feature-label">
+                        <span class="feature-name">Artifact Templates</span>
+                        <span class="feature-desc">Code templates + Monaco editor</span>
+                    </label>
+                    <span class="status-badge status-enabled">6E</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="SKILLIFY" data-phase="6">
+                    <label class="feature-label">
+                        <span class="feature-name">Skillify</span>
+                        <span class="feature-desc">Auto-generate skills from workflows</span>
+                    </label>
+                    <span class="status-badge status-enabled">6A</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phase 7: Security -->
+        <div class="section">
+            <div class="section-title">🔒 Phase 7: Security & Hardening</div>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="API_AUTH" data-phase="7">
+                    <label class="feature-label">
+                        <span class="feature-name">API Authentication</span>
+                        <span class="feature-desc">JWT + API key authentication</span>
+                    </label>
+                    <span class="status-badge status-enabled">7A</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="RATE_LIMITING" data-phase="7">
+                    <label class="feature-label">
+                        <span class="feature-name">Rate Limiting</span>
+                        <span class="feature-desc">Sliding window rate limiter</span>
+                    </label>
+                    <span class="status-badge status-enabled">7C</span>
+                </div>
+                <div class="feature-item">
+                    <input type="checkbox" data-feature="API_KEY_ENCRYPTION" data-phase="7">
+                    <label class="feature-label">
+                        <span class="feature-name">Key Encryption</span>
+                        <span class="feature-desc">OS keyring encrypted storage</span>
+                    </label>
+                    <span class="status-badge status-enabled">7B</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn-primary" id="enable-all">✓ Enable All</button>
+            <button class="btn-secondary" id="disable-all">✗ Disable All</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        async function loadSettings() {
+            try {
+                const res = await fetch(`${API_BASE}/api/features`);
+                const data = await res.json();
+                
+                document.querySelectorAll('[data-feature]').forEach(checkbox => {
+                    const name = checkbox.dataset.feature;
+                    checkbox.checked = data.enabled.includes(name);
+                });
+                
+                updateStats(data);
+            } catch (e) {
+                console.error('Failed to load settings:', e);
+                showToast('❌ Failed to load settings', 3000);
+            }
+        }
+
+        async function toggleFeature(name, enabled) {
+            try {
+                const res = await fetch(`${API_BASE}/api/features/${name}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({enabled})
+                });
+                
+                if (!res.ok) throw new Error('Failed to update feature');
+                
+                const data = await res.json();
+                showToast(`✓ ${name} ${enabled ? 'enabled' : 'disabled'}`, 2000);
+                
+                // Refresh stats
+                const featRes = await fetch(`${API_BASE}/api/features`);
+                const featData = await featRes.json();
+                updateStats(featData);
+                
+                return true;
+            } catch (e) {
+                console.error('Failed to toggle feature:', e);
+                showToast('❌ Failed to update feature', 3000);
+                return false;
+            }
+        }
+
+        async function bulkUpdate(updates) {
+            try {
+                const res = await fetch(`${API_BASE}/api/features`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(updates)
+                });
+                
+                if (!res.ok) throw new Error('Bulk update failed');
+                
+                await loadSettings();
+                showToast('✓ Settings updated', 2000);
+            } catch (e) {
+                console.error('Bulk update failed:', e);
+                showToast('❌ Bulk update failed', 3000);
+            }
+        }
+
+        function updateStats(data) {
+            const enabled = data.enabled.length;
+            const total = Object.keys(data.flags).length;
+            const disabled = total - enabled;
+            
+            document.getElementById('stat-enabled').textContent = enabled;
+            document.getElementById('stat-disabled').textContent = disabled;
+            document.getElementById('stat-total').textContent = total;
+        }
+
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, duration);
+        }
+
+        // Event listeners
+        document.querySelectorAll('[data-feature]').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                toggleFeature(checkbox.dataset.feature, checkbox.checked);
+            });
+        });
+
+        document.getElementById('enable-all').addEventListener('click', () => {
+            const updates = {};
+            document.querySelectorAll('[data-feature]').forEach(checkbox => {
+                updates[checkbox.dataset.feature] = true;
+                checkbox.checked = true;
+            });
+            bulkUpdate(updates);
+        });
+
+        document.getElementById('disable-all').addEventListener('click', () => {
+            const updates = {};
+            document.querySelectorAll('[data-feature]').forEach(checkbox => {
+                updates[checkbox.dataset.feature] = false;
+                checkbox.checked = false;
+            });
+            bulkUpdate(updates);
+        });
+
+        // Load on startup
+        loadSettings();
+    </script>
+</body>
+</html>

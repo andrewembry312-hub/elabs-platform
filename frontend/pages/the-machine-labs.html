@@ -1,0 +1,236 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>THE MACHINE â€” Node Editor</title>
+  <link rel="stylesheet" href="css/machine.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg-deep:#030308;--bg-primary:#0a0a10;--bg-card:#0e0e16;--bg-elevated:#14141e;--bg-hover:#1a1a28;
+      --green:#76b900;--green-bright:#95d600;--cyan:#00d4ff;--pink:#ff6b9d;--gold:#ffd700;--purple:#bb86fc;--blue:#4fc3f7;
+      --border:#1a1a2e;--border-light:#252540;--text-primary:#e8e8e8;--text-secondary:#888;--text-muted:#555;
+    }
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--bg-deep);color:var(--text-primary);overflow:hidden;height:100vh}
+    .layout{display:flex;height:100vh}
+
+    /* â•â•â• SIDEBAR â•â•â• */
+    .sidebar-left{width:200px;background:var(--bg-primary);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+    .sidebar-left h2{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);padding:16px 16px 12px}
+    .step-list{flex:1;overflow-y:auto;padding:0 8px}
+    .step-item{display:flex;align-items:center;gap:10px;padding:10px;border-radius:6px;font-size:12px;color:var(--text-secondary);cursor:pointer;transition:all .3s;margin-bottom:2px;border:1px solid transparent}
+    .step-item:hover{background:var(--bg-hover);color:var(--text-primary)}
+    .step-item.active{background:rgba(0,212,255,.08);border-color:rgba(0,212,255,.3);color:var(--cyan)}
+    .step-item.completed .step-dot{background:var(--green);box-shadow:0 0 8px rgba(118,185,0,.5)}
+    .step-item.active .step-dot{background:var(--cyan);box-shadow:0 0 10px rgba(0,212,255,.6);animation:pulse-dot 1.5s infinite}
+    .step-dot{width:10px;height:10px;border-radius:50%;background:#333;flex-shrink:0}
+    .step-label{font-weight:500}
+    .step-sub{font-size:10px;color:var(--text-muted);margin-top:2px}
+    @keyframes pulse-dot{0%,100%{box-shadow:0 0 6px rgba(0,212,255,.4)}50%{box-shadow:0 0 16px rgba(0,212,255,.8)}}
+
+    /* â•â•â• MAIN â•â•â• */
+    .canvas-area{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden}
+    .top-bar{height:48px;background:rgba(8,8,16,.95);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;z-index:20;backdrop-filter:blur(10px)}
+    .top-bar h1{font-size:16px;font-weight:700;color:var(--green);text-shadow:0 0 12px rgba(118,185,0,.4);display:flex;align-items:center;gap:8px}
+    .top-bar .tag{font-size:10px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase}
+    .spacer{flex:1}
+    .stat{font-size:12px;color:var(--text-muted)}
+    .stat strong{color:var(--green-bright)}
+
+    .main-view{flex:1;position:relative;overflow:hidden;background:var(--bg-deep)}
+    .main-view canvas{position:absolute;top:0;left:0;width:100%;height:100%}
+    #bgCanvas{z-index:1}
+    #fgCanvas{z-index:10;cursor:grab}
+
+    /* â•â•â• IFRAME NODES â•â•â• */
+    #iframeLayer{position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:none}
+    .lab-iframe-wrap{position:absolute;pointer-events:none;transform:translate(-50%,-50%);transition:left .4s ease,top .4s ease}
+    .lab-iframe-border{position:absolute;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);opacity:.25;transition:opacity .5s}
+    .lab-iframe-wrap.active .lab-iframe-border{opacity:.65;animation:node-pulse 2s ease-in-out infinite}
+    .lab-iframe-wrap.completed .lab-iframe-border{opacity:.45}
+    .lab-iframe-clip{clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);overflow:hidden;position:relative}
+    .lab-iframe-clip iframe{border:none;pointer-events:none;transform-origin:0 0;display:block}
+    .lab-iframe-label{text-align:center;font-size:8px;font-weight:700;letter-spacing:1px;margin-top:4px;opacity:.6;transition:opacity .3s}
+    .lab-iframe-wrap.active .lab-iframe-label{opacity:1}
+    @keyframes node-pulse{0%,100%{opacity:.55}50%{opacity:.75}}
+
+    /* â•â•â• BOTTOM BAR â•â•â• */
+    .bottom-bar{height:56px;background:rgba(8,8,16,.95);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px;z-index:20;backdrop-filter:blur(10px)}
+    .btn{padding:7px 18px;background:var(--bg-elevated);border:1px solid var(--border-light);border-radius:6px;color:#ccc;font-size:12px;cursor:pointer;transition:all .2s;font-family:inherit;font-weight:500}
+    .btn:hover{border-color:var(--green);color:var(--green);background:rgba(118,185,0,.08)}
+    .btn.active{background:var(--green);color:#000;border-color:var(--green);font-weight:700}
+    .btn:disabled{opacity:.3;cursor:not-allowed}
+    .speed-ctrl{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text-muted)}
+    .speed-ctrl input{width:80px;accent-color:var(--green)}
+    .speed-val{color:var(--green-bright);font-weight:600;min-width:30px}
+
+    /* â•â•â• RIGHT PANEL â•â•â• */
+    .panel-right{width:280px;background:var(--bg-primary);border-left:1px solid var(--border);overflow-y:auto;flex-shrink:0;scrollbar-width:thin;scrollbar-color:#1a1a2e transparent}
+    .panel-section{padding:14px 16px;border-bottom:1px solid var(--border)}
+    .panel-section h3{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px}
+    .play-card{display:flex;gap:8px}
+    .play-card .btn-play{flex:1;padding:10px;background:var(--green);color:#000;font-weight:700;font-size:13px;border:none;border-radius:6px;cursor:pointer;transition:all .2s;font-family:inherit}
+    .play-card .btn-play:hover{background:var(--green-bright)}
+    .play-card .btn-sm{padding:10px 14px;background:var(--bg-elevated);border:1px solid var(--border-light);border-radius:6px;color:var(--text-secondary);font-size:11px;cursor:pointer;transition:all .2s}
+    .play-card .btn-sm:hover{border-color:var(--cyan);color:var(--cyan)}
+    .info-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:5px}
+    .info-row .label{color:var(--text-muted)}
+    .info-row .value{color:var(--text-primary);font-weight:500}
+
+    /* Agent cards */
+    .agent-card{display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg-card);border-radius:8px;margin-bottom:6px;border:1px solid var(--border);transition:all .3s}
+    .agent-card.working{border-color:rgba(0,212,255,.4);background:rgba(0,212,255,.04)}
+    .agent-card.idle{opacity:.6}
+    .agent-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+    .agent-info{flex:1;min-width:0}
+    .agent-card-name{font-size:11px;font-weight:600}
+    .agent-card-state{font-size:10px;color:var(--text-muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .agent-card-loc{font-size:9px;color:var(--cyan);margin-top:1px}
+
+    /* VRAM */
+    .vram-outer{width:100%;height:16px;background:rgba(255,255,255,.06);border-radius:8px;overflow:hidden;position:relative;margin-top:6px}
+    .vram-inner{height:100%;border-radius:8px;transition:width .5s ease,background .5s ease;background:linear-gradient(90deg,#00d4ff,#69f0ae)}
+    .vram-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:9px;font-weight:700;color:#fff;text-shadow:0 0 4px rgba(0,0,0,.8)}
+
+    /* Metrics */
+    .metric-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px;color:var(--text-secondary)}
+    .metric-row strong{color:var(--text-primary)}
+    .bar-container{height:3px;background:#1a1a2e;border-radius:2px;margin-top:3px;margin-bottom:10px;overflow:hidden}
+    .bar-fill{height:100%;border-radius:2px;transition:width .8s ease}
+    .bar-fill.green{background:linear-gradient(90deg,#76b900,#95d600)}
+    .bar-fill.cyan{background:linear-gradient(90deg,#00a5cc,#00d4ff)}
+    .bar-fill.pink{background:linear-gradient(90deg,#cc3366,#ff6b9d)}
+    .bar-fill.purple{background:linear-gradient(90deg,#7744cc,#bb86fc)}
+
+    /* Log */
+    .log-area{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);max-height:180px;overflow-y:auto;padding:8px;background:#06060e;border-radius:6px;border:1px solid var(--border);scrollbar-width:thin;scrollbar-color:#1a1a2e transparent}
+    .log-area div{margin-bottom:3px;line-height:1.4}
+    .log-cyan{color:var(--cyan)}.log-green{color:var(--green-bright)}.log-pink{color:var(--pink)}.log-gold{color:var(--gold)}.log-purple{color:var(--purple)}
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <!-- LEFT SIDEBAR: STEP LIST -->
+    <div class="sidebar-left">
+      <h2>Workflow Steps</h2>
+      <div class="step-list" id="stepSidebar"></div>
+    </div>
+
+    <!-- MAIN CANVAS AREA -->
+    <div class="canvas-area">
+      <!-- TOP BAR -->
+      <div class="top-bar">
+        <h1>
+          <span>â—†</span> THE MACHINE
+        </h1>
+        <span class="tag">Node Editor</span>
+        <div class="spacer"></div>
+        <div class="stat">Agents: <strong id="agentCount">0</strong></div>
+        <div class="stat">Nodes: <strong id="nodeCount">8</strong></div>
+      </div>
+
+      <!-- CANVAS CONTAINER -->
+      <div class="main-view">
+        <canvas id="bgCanvas"></canvas>
+        <canvas id="fgCanvas"></canvas>
+      </div>
+
+      <!-- BOTTOM BAR: PLAYBACK CONTROLS -->
+      <div class="bottom-bar">
+        <button class="btn btn-play" id="playBtn">â–¶ Play</button>
+        <button class="btn btn-pause" id="pauseBtn" disabled>â¸ Pause</button>
+        <button class="btn btn-reset" id="resetBtn">â†» Reset</button>
+        <button class="btn btn-step" id="stepBtn">â†’ Step</button>
+
+        <div class="spacer"></div>
+
+        <div class="speed-ctrl">
+          <label>Speed</label>
+          <input type="range" id="speedSlider" min="0.1" max="3" step="0.1" value="1">
+          <span class="speed-val" id="speedValue">1.0x</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: INFO -->
+    <div class="panel-right">
+      <!-- PLAYBACK STATUS -->
+      <div class="panel-section">
+        <h3>Playback</h3>
+        <div class="play-card">
+          <button class="btn-play" id="playBtnRight">â–¶ Play</button>
+          <button class="btn-sm" id="pauseBtnRight">â¸</button>
+          <button class="btn-sm" id="resetBtnRight">â†»</button>
+        </div>
+        <div class="info-row" style="margin-top: 10px;">
+          <span class="label">Status:</span>
+          <span class="value" id="playbackStatus">Idle</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Step:</span>
+          <span class="value" id="stepNum">â€”</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Phase:</span>
+          <span class="value" id="phaseName">â€”</span>
+        </div>
+      </div>
+
+      <!-- VRAM USAGE -->
+      <div class="panel-section">
+        <h3>VRAM Usage</h3>
+        <div class="vram-outer">
+          <div class="vram-inner" id="vramBar" style="width: 0%;">
+            <span class="vram-text" id="vramText">0%</span>
+          </div>
+        </div>
+        <div class="info-row" style="margin-top: 8px;">
+          <span class="label">Loaded:</span>
+          <span class="value" id="vramUsed">0 MB</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Total:</span>
+          <span class="value" id="vramTotal">0 MB</span>
+        </div>
+      </div>
+
+      <!-- AGENTS -->
+      <div class="panel-section">
+        <h3>Active Agents</h3>
+        <div id="agentCardList"></div>
+      </div>
+
+      <!-- METRICS -->
+      <div class="panel-section">
+        <h3>Progress</h3>
+        <div class="metric-row">
+          <strong>Workflow</strong>
+          <span id="workflowPercent">0%</span>
+        </div>
+        <div class="bar-container">
+          <div class="bar-fill green" id="workflowBar" style="width: 0%;"></div>
+        </div>
+
+        <div class="metric-row">
+          <strong>Current Step</strong>
+          <span id="stepPercent">0%</span>
+        </div>
+        <div class="bar-container">
+          <div class="bar-fill cyan" id="stepBar" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- EVENT LOG -->
+      <div class="panel-section">
+        <h3>Event Log</h3>
+        <div class="log-area" id="logArea"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Module entry point -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

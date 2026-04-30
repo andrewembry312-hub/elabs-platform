@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Machine - Cosmic Workflow Engine</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #000;
+      color: #e8e8e8;
+      overflow: hidden;
+      height: 100vh;
+    }
+    .layout {
+      display: flex;
+      height: 100vh;
+    }
+    .canvas-area {
+      flex: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .top-bar {
+      height: 50px;
+      background: rgba(10,10,15,0.95);
+      border-bottom: 1px solid #1e1e1e;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      z-index: 10;
+    }
+    .top-bar h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #76b900;
+      text-shadow: 0 0 10px rgba(118,185,0,0.4);
+    }
+    .top-bar .tag {
+      font-size: 11px;
+      color: #555;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+    canvas {
+      flex: 1;
+      display: block;
+      cursor: default;
+    }
+    .bottom-bar {
+      height: 60px;
+      background: rgba(10,10,15,0.95);
+      border-top: 1px solid #1e1e1e;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      z-index: 10;
+    }
+    .btn {
+      padding: 8px 18px;
+      background: #161616;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      color: #ccc;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .btn:hover { border-color: #76b900; color: #76b900; background: #1a2a10; }
+    .btn.active { background: #76b900; color: #000; border-color: #76b900; font-weight: 600; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .speed-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #666;
+      font-size: 12px;
+    }
+    .speed-ctrl input {
+      width: 100px;
+      accent-color: #76b900;
+    }
+    .speed-val { color: #76b900; font-weight: 600; min-width: 35px; }
+    .spacer { flex: 1; }
+    .stat {
+      font-size: 12px;
+      color: #555;
+    }
+    .stat strong { color: #76b900; }
+
+    /* ─── Right Panel ─── */
+    .panel {
+      width: 300px;
+      background: #0a0a0e;
+      border-left: 1px solid #1e1e1e;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel-section {
+      padding: 16px;
+      border-bottom: 1px solid #1e1e1e;
+    }
+    .panel-section h3 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #555;
+      margin-bottom: 12px;
+    }
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 8px;
+      color: #777;
+    }
+    .metric-row strong { color: #e8e8e8; }
+    .metric-row .up { color: #76b900; }
+    .metric-row .down { color: #ff4444; }
+    .bar-container {
+      height: 4px;
+      background: #1a1a1a;
+      border-radius: 2px;
+      margin-top: 4px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.4s ease;
+    }
+    .bar-fill.green { background: linear-gradient(90deg, #76b900, #95d600); }
+    .bar-fill.cyan { background: linear-gradient(90deg, #00a5cc, #00d4ff); }
+    .bar-fill.pink { background: linear-gradient(90deg, #cc3366, #ff6b9d); }
+    .agent-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: #111;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border: 1px solid #1e1e1e;
+      transition: border-color 0.3s;
+    }
+    .agent-card.working { border-color: #00d4ff; background: rgba(0,212,255,0.05); }
+    .agent-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .agent-dot.gwen { background: linear-gradient(135deg, #76b900, #95d600); }
+    .agent-dot.deep { background: linear-gradient(135deg, #00a5cc, #00d4ff); }
+    .agent-info { flex: 1; }
+    .agent-name { font-size: 12px; font-weight: 600; }
+    .agent-state { font-size: 11px; color: #555; margin-top: 2px; }
+    .log-area {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 11px;
+      color: #555;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 10px;
+      background: #080808;
+      border-radius: 4px;
+      border: 1px solid #1a1a1a;
+    }
+    .log-area div { margin-bottom: 4px; }
+    .log-area .log-cyan { color: #00d4ff; }
+    .log-area .log-green { color: #76b900; }
+    .log-area .log-pink { color: #ff6b9d; }
+    .log-area .log-gold { color: #ffd700; }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <div class="canvas-area">
+    <div class="top-bar">
+      <h1>⚙ THE MACHINE</h1>
+      <span class="tag">Autonomous Optimization Engine</span>
+      <span class="spacer"></span>
+      <span class="stat">Step <strong id="step-num">0</strong> / <strong id="step-total">8</strong></span>
+      <span class="stat" id="timer-display">00:00.0</span>
+    </div>
+    <canvas id="c"></canvas>
+    <div class="bottom-bar">
+      <button class="btn active" id="btn-play">▶ Play</button>
+      <button class="btn" id="btn-pause" disabled>⏸ Pause</button>
+      <button class="btn" id="btn-step">⏭ Step</button>
+      <button class="btn" id="btn-reset">↺ Reset</button>
+      <div class="speed-ctrl">
+        <span>Speed</span>
+        <input type="range" id="speed" min="0.3" max="4" step="0.1" value="1">
+        <span class="speed-val" id="speed-val">1.0x</span>
+      </div>
+      <span class="spacer"></span>
+      <button class="btn" id="btn-export">Export</button>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-section">
+      <h3>Cycle Metrics</h3>
+      <div class="metric-row"><span>Efficiency</span><strong class="up" id="m-eff">85%</strong></div>
+      <div class="bar-container"><div class="bar-fill green" id="bar-eff" style="width:85%"></div></div>
+      <div class="metric-row"><span>Throughput</span><strong id="m-thr">0 ops/s</strong></div>
+      <div class="bar-container"><div class="bar-fill cyan" id="bar-thr" style="width:0%"></div></div>
+      <div class="metric-row"><span>Latency (P99)</span><strong id="m-lat">450ms</strong></div>
+      <div class="bar-container"><div class="bar-fill pink" id="bar-lat" style="width:90%"></div></div>
+      <div class="metric-row"><span>Accuracy</span><strong class="up" id="m-acc">78%</strong></div>
+      <div class="bar-container"><div class="bar-fill green" id="bar-acc" style="width:78%"></div></div>
+    </div>
+    <div class="panel-section">
+      <h3>Active Agents</h3>
+      <div class="agent-card" id="card-gwen">
+        <div class="agent-dot gwen">🧠</div>
+        <div class="agent-info">
+          <div class="agent-name">GWEN</div>
+          <div class="agent-state" id="st-gwen">Idle</div>
+        </div>
+      </div>
+      <div class="agent-card" id="card-deep">
+        <div class="agent-dot deep">🔬</div>
+        <div class="agent-info">
+          <div class="agent-name">deepseek-r1</div>
+          <div class="agent-state" id="st-deep">Idle</div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-section">
+      <h3>Execution Log</h3>
+      <div class="log-area" id="log"></div>
+    </div>
+    <div class="panel-section">
+      <h3>Improvement Delta</h3>
+      <div class="metric-row"><span>Tool Success</span><strong><span id="d-tool">94%</span> → <span class="up" id="d-tool2">94%</span></strong></div>
+      <div class="metric-row"><span>Routing Acc</span><strong><span id="d-route">78%</span> → <span class="up" id="d-route2">78%</span></strong></div>
+      <div class="metric-row"><span>Avg Response</span><strong><span id="d-resp">450ms</span> → <span id="d-resp2">450ms</span></strong></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// THE MACHINE — Full Canvas Cosmic Workflow Engine
+// ═══════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, dpr;
+
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  W = rect.width;
+  H = rect.height;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // Recompute node positions based on canvas size
+  layoutNodes();
+}
+window.addEventListener('resize', resize);
+
+// ─── Workflow Data ─────────────────────────────────────────
+const nodes = [
+  { id: 'start',      label: 'START',               type: 'start',    agent: null,   color: '#76b900' },
+  { id: 'detect',     label: 'Detect Gap',           type: 'action',   agent: 'gwen', color: '#76b900' },
+  { id: 'hypothesis', label: 'Generate Hypothesis',  type: 'action',   agent: 'gwen', color: '#76b900' },
+  { id: 'implement',  label: 'Implement Changes',    type: 'action',   agent: 'deep', color: '#00d4ff' },
+  { id: 'validate',   label: 'Validate Results',     type: 'action',   agent: 'deep', color: '#00d4ff' },
+  { id: 'decision',   label: 'Improved?',            type: 'decision', agent: null,   color: '#ffd700' },
+  { id: 'keep',       label: 'KEEP & Deploy',        type: 'action',   agent: 'gwen', color: '#76b900' },
+  { id: 'revert',     label: 'REVERT & Analyze',     type: 'action',   agent: 'gwen', color: '#ff6b9d' },
+  { id: 'end',        label: 'END',                  type: 'end',      agent: null,   color: '#ff6b9d' },
+];
+
+const edges = [
+  { from: 'start',    to: 'detect' },
+  { from: 'detect',   to: 'hypothesis' },
+  { from: 'hypothesis', to: 'implement' },
+  { from: 'implement', to: 'validate' },
+  { from: 'validate', to: 'decision' },
+  { from: 'decision', to: 'keep',   label: 'YES' },
+  { from: 'decision', to: 'revert', label: 'NO' },
+  { from: 'keep',     to: 'end' },
+  { from: 'revert',   to: 'end' },
+];
+
+const execPath = ['start','detect','hypothesis','implement','validate','decision','keep','end'];
+const stepDurations = [800, 2200, 2800, 2400, 2000, 1400, 1800, 1000]; // ms per step
+
+function layoutNodes() {
+  // Place nodes in a nice flowing layout relative to canvas size
+  const cx = W * 0.35, cy = H * 0.5;
+  const vGap = Math.min(90, H / 8);
+  const startY = cy - vGap * 3;
+  
+  const positions = {
+    start:      { x: cx,           y: startY },
+    detect:     { x: cx,           y: startY + vGap },
+    hypothesis: { x: cx,           y: startY + vGap * 2 },
+    implement:  { x: cx,           y: startY + vGap * 3 },
+    validate:   { x: cx,           y: startY + vGap * 4 },
+    decision:   { x: cx + 200,     y: startY + vGap * 4 },
+    keep:       { x: cx + 380,     y: startY + vGap * 3 },
+    revert:     { x: cx + 380,     y: startY + vGap * 5 },
+    end:        { x: cx + 520,     y: startY + vGap * 4 },
+  };
+  nodes.forEach(n => {
+    const p = positions[n.id];
+    n.x = p.x;
+    n.y = p.y;
+  });
+}
+
+// ─── State ─────────────────────────────────────────────────
+let running = false;
+let paused = false;
+let curStep = -1;
+let stepProgress = 0; // 0..1 within current step
+let speed = 1;
+let elapsedMs = 0;
+let completedSet = new Set();
+let particles = [];
+let coreParticles = [];
+let trailParticles = [];
+let agentPos = { gwen: {x:0,y:0}, deep: {x:0,y:0} };
+let agentTarget = { gwen: null, deep: null };
+let prevTime = 0;
+
+// ─── Particles ─────────────────────────────────────────────
+function addParticle(x, y, tx, ty, color, life) {
+  particles.push({
+    x, y, tx, ty, color,
+    age: 0, life: life || 1500,
+    size: 2 + Math.random() * 3,
+    vx: (tx - x) / (life || 1500) * 1000 + (Math.random() - 0.5) * 30,
+    vy: (ty - y) / (life || 1500) * 1000 + (Math.random() - 0.5) * 30,
+  });
+}
+
+function addCoreParticle() {
+  const angle = Math.random() * Math.PI * 2;
+  const dist = 20 + Math.random() * 60;
+  const cx = W * 0.35 + 200, cy = H * 0.5;
+  coreParticles.push({
+    x: cx + Math.cos(angle) * dist,
+    y: cy + Math.sin(angle) * dist,
+    angle,
+    dist,
+    speed: 0.3 + Math.random() * 0.8,
+    size: 1 + Math.random() * 2,
+    alpha: 0.3 + Math.random() * 0.5,
+    life: 2000 + Math.random() * 3000,
+    age: 0,
+  });
+}
+
+function addTrail(x, y, color) {
+  trailParticles.push({
+    x, y, color,
+    alpha: 0.8,
+    size: 3 + Math.random() * 2,
+    age: 0,
+    life: 600,
+  });
+}
+
+// ─── Drawing Helpers ───────────────────────────────────────
+function drawGlow(x, y, r, color, alpha) {
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+  grad.addColorStop(0, color + hex(alpha));
+  grad.addColorStop(0.5, color + hex(alpha * 0.4));
+  grad.addColorStop(1, color + '00');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function hex(a) {
+  return Math.round(Math.max(0, Math.min(1, a)) * 255).toString(16).padStart(2, '0');
+}
+
+function drawRoundedRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawDiamond(x, y, s) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - s);
+  ctx.lineTo(x + s, y);
+  ctx.lineTo(x, y + s);
+  ctx.lineTo(x - s, y);
+  ctx.closePath();
+}
+
+// ─── Render ────────────────────────────────────────────────
+function render(dt) {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background gradient
+  const bgGrad = ctx.createRadialGradient(W*0.45, H*0.5, 50, W*0.45, H*0.5, Math.max(W,H)*0.7);
+  bgGrad.addColorStop(0, '#0a0f14');
+  bgGrad.addColorStop(0.4, '#060608');
+  bgGrad.addColorStop(1, '#000000');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid dots
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  for (let gx = 20; gx < W; gx += 30) {
+    for (let gy = 20; gy < H; gy += 30) {
+      ctx.fillRect(gx, gy, 1, 1);
+    }
+  }
+
+  // ── Cosmic Core ──
+  const coreX = W * 0.35 + 200, coreY = H * 0.5;
+  const corePulse = 0.9 + 0.1 * Math.sin(elapsedMs / 1500);
+  drawGlow(coreX, coreY, 120 * corePulse, '#00d4ff', running ? 0.25 : 0.1);
+  drawGlow(coreX, coreY, 60 * corePulse, '#00d4ff', running ? 0.4 : 0.15);
+  drawGlow(coreX, coreY, 25, '#ffffff', running ? 0.3 : 0.1);
+
+  // Core ring
+  ctx.strokeStyle = `rgba(0,212,255,${running ? 0.4 : 0.15})`;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(coreX, coreY, 45 * corePulse, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(coreX, coreY, 70 * corePulse, elapsedMs / 2000, elapsedMs / 2000 + Math.PI);
+  ctx.stroke();
+
+  // Core label
+  ctx.font = '10px Segoe UI';
+  ctx.fillStyle = `rgba(0,212,255,${running ? 0.7 : 0.3})`;
+  ctx.textAlign = 'center';
+  ctx.fillText('NEURAL CORE', coreX, coreY + 55);
+  ctx.fillText(`v${running ? '4.2' : '--'}`, coreX, coreY + 67);
+
+  // ── Draw Edges ──
+  edges.forEach(e => {
+    const from = nodes.find(n => n.id === e.from);
+    const to = nodes.find(n => n.id === e.to);
+    const isActive = running && curStep >= 0 && execPath[curStep] === e.from;
+    const isComplete = completedSet.has(e.from) && completedSet.has(e.to);
+    
+    ctx.strokeStyle = isActive ? '#00d4ff' : isComplete ? 'rgba(118,185,0,0.4)' : 'rgba(50,50,50,0.6)';
+    ctx.lineWidth = isActive ? 3 : 1.5;
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+
+    // Edge glow when active
+    if (isActive) {
+      drawGlow((from.x + to.x) / 2, (from.y + to.y) / 2, 40, '#00d4ff', 0.2);
+      // Moving dot along edge
+      const t = (elapsedMs % 800) / 800;
+      const dotX = from.x + (to.x - from.x) * t;
+      const dotY = from.y + (to.y - from.y) * t;
+      drawGlow(dotX, dotY, 12, '#00d4ff', 0.8);
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(dotX, dotY, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Arrow
+    const angle = Math.atan2(to.y - from.y, to.x - from.x);
+    const midX = from.x + (to.x - from.x) * 0.65;
+    const midY = from.y + (to.y - from.y) * 0.65;
+    ctx.fillStyle = isActive ? '#00d4ff' : 'rgba(80,80,80,0.6)';
+    ctx.beginPath();
+    ctx.moveTo(midX + Math.cos(angle) * 8, midY + Math.sin(angle) * 8);
+    ctx.lineTo(midX + Math.cos(angle + 2.5) * 6, midY + Math.sin(angle + 2.5) * 6);
+    ctx.lineTo(midX + Math.cos(angle - 2.5) * 6, midY + Math.sin(angle - 2.5) * 6);
+    ctx.fill();
+
+    // Edge label
+    if (e.label) {
+      const lx = from.x + (to.x - from.x) * 0.5;
+      const ly = from.y + (to.y - from.y) * 0.5;
+      ctx.font = '10px Segoe UI';
+      ctx.fillStyle = isActive ? '#00d4ff' : '#555';
+      ctx.textAlign = 'center';
+      ctx.fillText(e.label, lx - 15, ly - 5);
+    }
+  });
+
+  // ── Energy beams from core to active node ──
+  if (running && curStep >= 0 && curStep < execPath.length) {
+    const activeNode = nodes.find(n => n.id === execPath[curStep]);
+    if (activeNode) {
+      const beamAlpha = 0.15 + 0.1 * Math.sin(elapsedMs / 400);
+      ctx.strokeStyle = `rgba(0,212,255,${beamAlpha})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 8]);
+      ctx.beginPath();
+      ctx.moveTo(coreX, coreY);
+      ctx.lineTo(activeNode.x, activeNode.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // ── Draw Nodes ──
+  nodes.forEach(n => {
+    const isActive = running && curStep >= 0 && execPath[curStep] === n.id;
+    const isComplete = completedSet.has(n.id);
+    const w = 140, h = 50;
+    
+    // Node glow
+    if (isActive) {
+      drawGlow(n.x, n.y, 60, n.color, 0.3);
+    }
+
+    if (n.type === 'start' || n.type === 'end') {
+      // Circle nodes
+      const r = 30;
+      ctx.fillStyle = isActive ? (n.color + '30') : isComplete ? '#0a150a' : '#0d0d0d';
+      ctx.strokeStyle = isActive ? n.color : isComplete ? (n.color + '60') : '#2a2a2a';
+      ctx.lineWidth = isActive ? 2.5 : 1.5;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      if (isActive) {
+        ctx.strokeStyle = n.color + '40';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r + 8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.font = 'bold 13px Segoe UI';
+      ctx.fillStyle = isActive ? '#fff' : isComplete ? n.color : '#888';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(n.label, n.x, n.y);
+
+    } else if (n.type === 'decision') {
+      // Diamond node
+      const s = 38;
+      ctx.fillStyle = isActive ? '#1a1a00' : isComplete ? '#0f0f08' : '#0d0d0d';
+      ctx.strokeStyle = isActive ? '#ffd700' : isComplete ? '#ffd70060' : '#2a2a2a';
+      ctx.lineWidth = isActive ? 2.5 : 1.5;
+      drawDiamond(n.x, n.y, s);
+      ctx.fill();
+      ctx.stroke();
+      if (isActive) {
+        drawGlow(n.x, n.y, 50, '#ffd700', 0.25);
+      }
+      ctx.font = 'bold 12px Segoe UI';
+      ctx.fillStyle = isActive ? '#ffd700' : isComplete ? '#aa8800' : '#888';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(n.label, n.x, n.y);
+
+    } else {
+      // Rounded rect action nodes
+      drawRoundedRect(n.x - w/2, n.y - h/2, w, h, 8);
+      ctx.fillStyle = isActive ? (n.color + '15') : isComplete ? '#080f08' : '#0d0d0d';
+      ctx.fill();
+      ctx.strokeStyle = isActive ? n.color : isComplete ? (n.color + '50') : '#2a2a2a';
+      ctx.lineWidth = isActive ? 2.5 : 1.5;
+      ctx.stroke();
+      if (isActive) {
+        drawRoundedRect(n.x - w/2 - 4, n.y - h/2 - 4, w + 8, h + 8, 12);
+        ctx.strokeStyle = n.color + '30';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      // Label
+      ctx.font = '12px Segoe UI';
+      ctx.fillStyle = isActive ? '#fff' : isComplete ? '#aaa' : '#888';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(n.label, n.x, n.y - 6);
+      // Agent icon
+      if (n.agent) {
+        const icon = n.agent === 'gwen' ? '🧠' : '🔬';
+        ctx.font = '14px Segoe UI';
+        ctx.fillText(icon, n.x, n.y + 12);
+      }
+      // Progress bar inside node
+      if (isActive) {
+        const bw = w - 20, bh = 3;
+        const bx = n.x - bw/2, by = n.y + h/2 - 10;
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(bx, by, bw, bh);
+        ctx.fillStyle = n.color;
+        ctx.fillRect(bx, by, bw * stepProgress, bh);
+      }
+    }
+
+    // Status text below
+    if (n.type === 'action') {
+      ctx.font = '10px Segoe UI';
+      ctx.fillStyle = isActive ? n.color : '#333';
+      ctx.textAlign = 'center';
+      ctx.fillText(isActive ? 'Working...' : isComplete ? '✓ Done' : 'Ready', n.x, n.y + h/2 + 14);
+    }
+  });
+
+  // ── Core orbiting particles ──
+  coreParticles.forEach(p => {
+    p.age += dt;
+    p.angle += p.speed * dt / 1000;
+    const lifeRatio = 1 - p.age / p.life;
+    if (lifeRatio <= 0) return;
+    const px = coreX + Math.cos(p.angle) * p.dist;
+    const py = coreY + Math.sin(p.angle) * p.dist;
+    ctx.fillStyle = `rgba(0,212,255,${p.alpha * lifeRatio})`;
+    ctx.beginPath();
+    ctx.arc(px, py, p.size * lifeRatio, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  coreParticles = coreParticles.filter(p => p.age < p.life);
+
+  // ── Moving particles ──
+  particles.forEach(p => {
+    p.age += dt;
+    p.x += p.vx * dt / 1000;
+    p.y += p.vy * dt / 1000;
+    const lifeRatio = 1 - p.age / p.life;
+    if (lifeRatio <= 0) return;
+    ctx.fillStyle = p.color + hex(lifeRatio * 0.8);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * lifeRatio, 0, Math.PI * 2);
+    ctx.fill();
+    drawGlow(p.x, p.y, p.size * 4, p.color, lifeRatio * 0.3);
+  });
+  particles = particles.filter(p => p.age < p.life);
+
+  // ── Trail particles ──
+  trailParticles.forEach(p => {
+    p.age += dt;
+    const lifeRatio = 1 - p.age / p.life;
+    if (lifeRatio <= 0) return;
+    ctx.fillStyle = p.color + hex(lifeRatio * p.alpha);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * lifeRatio, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  trailParticles = trailParticles.filter(p => p.age < p.life);
+
+  // ── Agent avatars ──
+  ['gwen', 'deep'].forEach(id => {
+    const target = agentTarget[id];
+    const pos = agentPos[id];
+    if (target) {
+      pos.x += (target.x - pos.x) * 0.06;
+      pos.y += (target.y - pos.y) * 0.06;
+      // Leave trail
+      if (running && Math.random() > 0.6) {
+        addTrail(pos.x, pos.y, id === 'gwen' ? '#76b900' : '#00d4ff');
+      }
+    }
+    const glow = id === 'gwen' ? '#76b900' : '#00d4ff';
+    const isWorking = target !== null;
+    if (isWorking) {
+      drawGlow(pos.x, pos.y + 35, 25, glow, 0.4 + 0.2 * Math.sin(elapsedMs / 300));
+    }
+    // Circle background
+    ctx.fillStyle = id === 'gwen' ? '#76b900' : '#00d4ff';
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y + 35, 16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Emoji
+    ctx.font = '16px Segoe UI';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(id === 'gwen' ? '🧠' : '🔬', pos.x, pos.y + 35);
+    // Name
+    ctx.font = '9px Segoe UI';
+    ctx.fillStyle = glow;
+    ctx.fillText(id === 'gwen' ? 'GWEN' : 'deepseek', pos.x, pos.y + 55);
+  });
+}
+
+// ─── Execution Logic ───────────────────────────────────────
+function startStep(idx) {
+  if (idx >= execPath.length) {
+    finish();
+    return;
+  }
+  curStep = idx;
+  stepProgress = 0;
+  const node = nodes.find(n => n.id === execPath[idx]);
+  
+  // Move agent to node
+  if (node.agent) {
+    agentTarget[node.agent] = { x: node.x, y: node.y };
+    setAgentState(node.agent, 'Working');
+    // Burst particles from core to node
+    for (let i = 0; i < 12; i++) {
+      setTimeout(() => {
+        const coreX = W * 0.35 + 200, coreY = H * 0.5;
+        addParticle(coreX, coreY, node.x, node.y, node.color, 1200 + Math.random() * 800);
+      }, i * 80);
+    }
+  }
+
+  // Log
+  addLog(`[Step ${idx+1}] ${node.label}`, node.color);
+  document.getElementById('step-num').textContent = idx + 1;
+}
+
+function completeStep() {
+  if (curStep < 0 || curStep >= execPath.length) return;
+  const nodeId = execPath[curStep];
+  const node = nodes.find(n => n.id === nodeId);
+  completedSet.add(nodeId);
+  if (node.agent) setAgentState(node.agent, 'Idle');
+
+  // Update faux metrics
+  updateFauxMetrics(curStep);
+}
+
+function finish() {
+  running = false;
+  paused = false;
+  addLog('✓ Cycle complete — improvements deployed', '#76b900');
+  document.getElementById('btn-play').disabled = false;
+  document.getElementById('btn-play').classList.add('active');
+  document.getElementById('btn-pause').disabled = true;
+  setAgentState('gwen', 'Idle');
+  setAgentState('deep', 'Idle');
+}
+
+function updateFauxMetrics(step) {
+  const eff = Math.min(99, 85 + step * 2.1);
+  const thr = (step + 1) * 12;
+  const lat = Math.max(310, 450 - step * 18);
+  const acc = Math.min(97, 78 + step * 2.8);
+  
+  document.getElementById('m-eff').textContent = Math.round(eff) + '%';
+  document.getElementById('bar-eff').style.width = eff + '%';
+  document.getElementById('m-thr').textContent = thr.toFixed(0) + ' ops/s';
+  document.getElementById('bar-thr').style.width = Math.min(100, thr / 1.2) + '%';
+  document.getElementById('m-lat').textContent = Math.round(lat) + 'ms';
+  document.getElementById('bar-lat').style.width = (lat / 5) + '%';
+  document.getElementById('m-acc').textContent = Math.round(acc) + '%';
+  document.getElementById('bar-acc').style.width = acc + '%';
+
+  // Delta panel
+  document.getElementById('d-tool2').textContent = Math.min(99, 94 + step * 0.5).toFixed(1) + '%';
+  document.getElementById('d-route2').textContent = Math.min(96, 78 + step * 2.5).toFixed(0) + '%';
+  const newResp = Math.max(380, 450 - step * 10);
+  document.getElementById('d-resp2').textContent = newResp + 'ms';
+  document.getElementById('d-resp2').className = newResp < 450 ? 'up' : '';
+}
+
+function setAgentState(id, state) {
+  const stEl = document.getElementById(`st-${id}`);
+  const card = document.getElementById(`card-${id === 'gwen' ? 'gwen' : 'deep'}`);
+  stEl.textContent = state;
+  card.classList.toggle('working', state === 'Working');
+  if (state === 'Idle') agentTarget[id] = null;
+}
+
+function addLog(msg, color) {
+  const log = document.getElementById('log');
+  const ts = new Date().toLocaleTimeString();
+  const cls = color === '#76b900' ? 'log-green' : color === '#00d4ff' ? 'log-cyan' : color === '#ffd700' ? 'log-gold' : color === '#ff6b9d' ? 'log-pink' : '';
+  log.innerHTML += `<div><span style="color:#333">${ts}</span> <span class="${cls}">${msg}</span></div>`;
+  log.scrollTop = log.scrollHeight;
+}
+
+// ─── Controls ──────────────────────────────────────────────
+document.getElementById('btn-play').addEventListener('click', () => {
+  if (running && paused) {
+    paused = false;
+    document.getElementById('btn-pause').disabled = false;
+    return;
+  }
+  running = true;
+  paused = false;
+  curStep = -1;
+  stepProgress = 0;
+  completedSet.clear();
+  elapsedMs = 0;
+  particles = [];
+  trailParticles = [];
+  // Reset agent positions to start node
+  const startN = nodes.find(n => n.id === 'start');
+  agentPos.gwen = { x: startN.x - 30, y: startN.y - 20 };
+  agentPos.deep = { x: startN.x + 30, y: startN.y - 20 };
+  agentTarget.gwen = null;
+  agentTarget.deep = null;
+  document.getElementById('log').innerHTML = '';
+  addLog('▶ Cycle initiated', '#76b900');
+  startStep(0);
+  document.getElementById('btn-play').disabled = true;
+  document.getElementById('btn-play').classList.remove('active');
+  document.getElementById('btn-pause').disabled = false;
+});
+
+document.getElementById('btn-pause').addEventListener('click', () => {
+  paused = !paused;
+  document.getElementById('btn-pause').textContent = paused ? '▶ Resume' : '⏸ Pause';
+});
+
+document.getElementById('btn-step').addEventListener('click', () => {
+  if (!running) {
+    // Start fresh
+    running = true;
+    paused = true;
+    curStep = -1;
+    completedSet.clear();
+    elapsedMs = 0;
+    const startN = nodes.find(n => n.id === 'start');
+    agentPos.gwen = { x: startN.x - 30, y: startN.y - 20 };
+    agentPos.deep = { x: startN.x + 30, y: startN.y - 20 };
+    document.getElementById('log').innerHTML = '';
+    addLog('⏭ Step mode', '#ffd700');
+  }
+  if (curStep >= 0) completeStep();
+  if (curStep + 1 < execPath.length) {
+    startStep(curStep + 1);
+    stepProgress = 1;
+  } else {
+    finish();
+  }
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  running = false;
+  paused = false;
+  curStep = -1;
+  stepProgress = 0;
+  completedSet.clear();
+  elapsedMs = 0;
+  particles = [];
+  coreParticles = [];
+  trailParticles = [];
+  agentTarget.gwen = null;
+  agentTarget.deep = null;
+  document.getElementById('btn-play').disabled = false;
+  document.getElementById('btn-play').classList.add('active');
+  document.getElementById('btn-pause').disabled = true;
+  document.getElementById('btn-pause').textContent = '⏸ Pause';
+  document.getElementById('step-num').textContent = '0';
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('m-eff').textContent = '85%';
+  document.getElementById('bar-eff').style.width = '85%';
+  document.getElementById('m-thr').textContent = '0 ops/s';
+  document.getElementById('bar-thr').style.width = '0%';
+  document.getElementById('m-lat').textContent = '450ms';
+  document.getElementById('bar-lat').style.width = '90%';
+  document.getElementById('m-acc').textContent = '78%';
+  document.getElementById('bar-acc').style.width = '78%';
+  setAgentState('gwen', 'Idle');
+  setAgentState('deep', 'Idle');
+  addLog('↺ Reset', '#555');
+});
+
+document.getElementById('speed').addEventListener('input', e => {
+  speed = parseFloat(e.target.value);
+  document.getElementById('speed-val').textContent = speed.toFixed(1) + 'x';
+});
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  const data = { nodes, edges, execPath, exported: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'the-machine-workflow.json';
+  a.click();
+});
+
+// ─── Main Loop ─────────────────────────────────────────────
+function loop(ts) {
+  const dt = prevTime ? Math.min(ts - prevTime, 50) : 16;
+  prevTime = ts;
+
+  if (running && !paused) {
+    elapsedMs += dt * speed;
+
+    // Step progression
+    if (curStep >= 0 && curStep < execPath.length) {
+      const dur = stepDurations[curStep] || 2000;
+      stepProgress += (dt * speed) / dur;
+      if (stepProgress >= 1) {
+        stepProgress = 1;
+        completeStep();
+        if (curStep + 1 < execPath.length) {
+          startStep(curStep + 1);
+        } else {
+          finish();
+        }
+      }
+    }
+  }
+
+  // Ambient core particles (always, just faster when running)
+  if (Math.random() > (running ? 0.7 : 0.92)) {
+    addCoreParticle();
+  }
+
+  // Timer display
+  const secs = Math.floor(elapsedMs / 1000);
+  const tenths = Math.floor((elapsedMs % 1000) / 100);
+  document.getElementById('timer-display').textContent =
+    `${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}.${tenths}`;
+
+  render(dt);
+  requestAnimationFrame(loop);
+}
+
+// ─── Init ──────────────────────────────────────────────────
+resize();
+// Position agents at start
+const startN = nodes.find(n => n.id === 'start');
+agentPos.gwen = { x: startN.x - 30, y: startN.y - 20 };
+agentPos.deep = { x: startN.x + 30, y: startN.y - 20 };
+
+addLog('System initialized', '#555');
+addLog('Ready — press Play to begin cycle', '#76b900');
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

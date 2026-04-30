@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Character</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body { background: #f0f0f0; }
+  #sprite { position: absolute; top: 20px; left: 20px; width: 120px; height: 180px; }
+</style>
+</head>
+<body>
+
+<div id="sprite">
+<svg viewBox="0 0 120 180" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="85%" stop-color="#e8e8ee"/>
+      <stop offset="100%" stop-color="#d0d0dd"/>
+    </radialGradient>
+    <radialGradient id="headGrad" cx="45%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="80%" stop-color="#eaeaf0"/>
+      <stop offset="100%" stop-color="#d5d5e0"/>
+    </radialGradient>
+    <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#aaffff"/>
+      <stop offset="50%" stop-color="#66e0e0"/>
+      <stop offset="100%" stop-color="#339999"/>
+    </radialGradient>
+    <radialGradient id="visorGrad" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#0a0a15"/>
+    </radialGradient>
+    <filter id="glowFilter" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Base/Stand -->
+  <ellipse cx="60" cy="170" rx="22" ry="6" fill="#1a1a2e" stroke="#2a2a4a" stroke-width="0.5"/>
+  <rect x="52" y="158" width="16" height="14" rx="2" fill="#2a2a3e"/>
+  <ellipse cx="60" cy="158" rx="8" ry="3" fill="#33334d"/>
+
+  <!-- Body (egg/vase shape, starts at head bottom) -->
+  <path d="M60,74 C82,74 88,100 88,120 C88,140 80,155 60,158 C40,155 32,140 32,120 C32,100 38,74 60,74 Z"
+        fill="url(#bodyGrad)" stroke="#c8c8d8" stroke-width="0.5"/>
+
+  <!-- Left arm -->
+  <g class="arm-left">
+    <path d="M34,100 C22,103 16,112 18,122 C19,126 22,128 26,127 C30,126 34,118 36,110 Z"
+          fill="url(#bodyGrad)" stroke="#c8c8d8" stroke-width="0.5"/>
+  </g>
+
+  <!-- Right arm -->
+  <g class="arm-right">
+    <path d="M86,100 C98,103 104,112 102,122 C101,126 98,128 94,127 C90,126 86,118 84,110 Z"
+          fill="url(#bodyGrad)" stroke="#c8c8d8" stroke-width="0.5"/>
+  </g>
+
+  <!-- Head (no neck, more oval) -->
+  <ellipse cx="60" cy="50" rx="34" ry="26" fill="url(#headGrad)" stroke="#c0c0d0" stroke-width="0.5"/>
+
+  <!-- Visor/Face screen -->
+  <ellipse cx="60" cy="48" rx="25" ry="14" fill="url(#visorGrad)"/>
+
+  <!-- Left eye -->
+  <g filter="url(#glowFilter)">
+    <ellipse cx="48" cy="47" rx="6" ry="8" fill="url(#eyeGlow)"/>
+    <ellipse cx="48" cy="45" rx="3" ry="4" fill="#ccffff" opacity="0.5"/>
+  </g>
+
+  <!-- Right eye -->
+  <g filter="url(#glowFilter)">
+    <ellipse cx="72" cy="47" rx="6" ry="8" fill="url(#eyeGlow)"/>
+    <ellipse cx="72" cy="45" rx="3" ry="4" fill="#ccffff" opacity="0.5"/>
+  </g>
+
+  <!-- Head highlight -->
+  <ellipse cx="48" cy="34" rx="14" ry="5" fill="white" opacity="0.15" transform="rotate(-15 48 34)"/>
+</svg>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,50 @@
+# E-Labs Caddy v2 config — two public endpoints on this machine.
+#
+# DNS A records required (point both to this host's public IP):
+#   www.elabs.com        → <public IP>
+#   gateway.elabs.com    → <public IP>
+#
+# Caddy handles TLS automatically via Let's Encrypt (ports 80 + 443 must be open).
+#
+# Services on loopback:
+#   Waitress  (consulting site)  → 127.0.0.1:8080
+#   OpenClaw  (AI gateway)       → 127.0.0.1:18789
+#
+# Start Waitress:  WAITRESS_HOST=127.0.0.1 WAITRESS_PORT=8080 TRUST_PROXY=1 WAITRESS_URL_SCHEME=https
+# OpenClaw starts automatically on port 18789 (see openclaw/ or local-model-master/).
+
+# ── Consulting site ──────────────────────────────────────────────────────────
+www.elabs.com {
+	reverse_proxy 127.0.0.1:8080
+}
+
+# ── OpenClaw AI Gateway ──────────────────────────────────────────────────────
+# All requests must carry:  Authorization: Bearer <token>
+# The token is set in OpenClaw's config (OPENCLAW_BEARER_TOKEN env var).
+# Caddy only enforces the header is present; OpenClaw validates the value.
+gateway.elabs.com {
+	# Reject requests that have no Authorization header at all (fast-fail)
+	@no_auth {
+		not header Authorization *
+		not path /health
+	}
+	respond @no_auth 401 {
+		body `{"error":"Authorization header required"}`
+		close
+	}
+
+	# CORS pre-flight — allow copilot UI and elabs.com origins
+	@cors_preflight method OPTIONS
+	handle @cors_preflight {
+		header Access-Control-Allow-Origin "https://copilot.elabs.com"
+		header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+		header Access-Control-Allow-Headers "Authorization, Content-Type"
+		header Access-Control-Max-Age "86400"
+		respond 204
+	}
+
+	header Access-Control-Allow-Origin "https://copilot.elabs.com"
+	header Access-Control-Allow-Headers "Authorization, Content-Type"
+
+	reverse_proxy 127.0.0.1:18789
+}

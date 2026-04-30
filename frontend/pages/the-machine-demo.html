@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Machine - Workflow Operations Center</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --bg-deep: #050505;
+      --bg-primary: #0a0a0a;
+      --bg-card: #111111;
+      --bg-elevated: #161616;
+      --bg-hover: #1a1a1a;
+      --green: #76b900;
+      --green-bright: #95d600;
+      --cyan: #00d4ff;
+      --pink: #ff6b9d;
+      --gold: #ffd700;
+      --border: #1e1e1e;
+      --text-primary: #e8e8e8;
+      --text-secondary: #999;
+      --text-muted: #555;
+      --error: #ff4444;
+      --success: #76b900;
+    }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+      gap: 0;
+    }
+
+    /* ═══ CANVAS AREA ═══════════════════════════════════════ */
+    .canvas-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-deep);
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+
+    .canvas-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-card);
+    }
+
+    .canvas-header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .canvas-header h1 span {
+      font-size: 24px;
+    }
+
+    #canvas {
+      flex: 1;
+      background: radial-gradient(ellipse at center, rgba(30, 60, 120, 0.15) 0%, transparent 50%),
+                  linear-gradient(135deg, #0a0a0a 25%, transparent 25%, transparent 75%, #0a0a0a 75%, #0a0a0a),
+                  linear-gradient(135deg, #0a0a0a 25%, transparent 25%, transparent 75%, #0a0a0a 75%, #0a0a0a);
+      background-size: 100% 100%, 20px 20px, 20px 20px;
+      background-position: center, 0 0, 10px 10px;
+      background-color: var(--bg-deep);
+      cursor: grab;
+      position: relative;
+    }
+
+    #canvas.dragging {
+      cursor: grabbing;
+    }
+
+    /* Node styles */
+    .node {
+      position: absolute;
+      width: 160px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg-card);
+      padding: 12px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: grab;
+      transition: all 0.2s ease;
+      z-index: 10;
+    }
+
+    .node.active {
+      border-color: var(--green);
+      box-shadow: 0 0 16px rgba(118, 185, 0, 0.4);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .node.complete {
+      border-color: var(--success);
+      opacity: 0.6;
+      background: rgba(118, 185, 0, 0.1);
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 16px rgba(118, 185, 0, 0.4); }
+      50% { box-shadow: 0 0 24px rgba(118, 185, 0, 0.7); }
+    }
+
+    .node .title {
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .node .agent {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .node .status {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 6px;
+    }
+
+    .node .progress {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+
+    .node .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--green), var(--green-bright));
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Decision node (diamond) */
+    .node.decision {
+      width: 120px;
+      height: 120px;
+      padding: 8px;
+      transform: rotate(45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .node.decision .title {
+      transform: rotate(-45deg);
+      margin: 0;
+    }
+
+    /* Start/End nodes */
+    .node.start, .node.end {
+      border-radius: 50%;
+      width: 100px;
+      height: 100px;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    .node.start {
+      border-color: var(--green);
+      background: rgba(118, 185, 0, 0.1);
+    }
+
+    .node.end {
+      border-color: var(--pink);
+      background: rgba(255, 107, 157, 0.1);
+    }
+
+    /* ═══ AGENT AVATARS ════════════════════════════════════ */
+    .agent-avatar {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      border: 2px solid white;
+      z-index: 20;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .agent-avatar.gwen {
+      background: linear-gradient(135deg, #76b900, #95d600);
+      animation: glow-green 2s ease-in-out infinite;
+    }
+
+    .agent-avatar.deepseek {
+      background: linear-gradient(135deg, #00d4ff, #0099cc);
+      animation: glow-cyan 2s ease-in-out infinite;
+    }
+
+    @keyframes glow-green {
+      0%, 100% { box-shadow: 0 0 12px rgba(118, 185, 0, 0.6); }
+      50% { box-shadow: 0 0 20px rgba(118, 185, 0, 1); }
+    }
+
+    @keyframes glow-cyan {
+      0%, 100% { box-shadow: 0 0 12px rgba(0, 212, 255, 0.6); }
+      50% { box-shadow: 0 0 20px rgba(0, 212, 255, 1); }
+    }
+
+    /* ═══ CONTROL PANEL ════════════════════════════════════ */
+    .control-panel {
+      width: 320px;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .control-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .control-section h3 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      flex: 1;
+      min-width: 60px;
+      padding: 10px 12px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    button:hover {
+      background: var(--bg-hover);
+      border-color: var(--green);
+    }
+
+    button.primary {
+      background: var(--green);
+      color: var(--bg-deep);
+      border-color: var(--green);
+      flex: 1;
+      min-width: 100%;
+      font-weight: 600;
+    }
+
+    button.primary:hover {
+      background: var(--green-bright);
+      border-color: var(--green-bright);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .slider-group label {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--green);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      background: var(--green-bright);
+      box-shadow: 0 0 8px rgba(118, 185, 0, 0.5);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--green);
+      cursor: pointer;
+      border: none;
+    }
+
+    .status-info {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    .status-info.running {
+      border-color: var(--green);
+      background: rgba(118, 185, 0, 0.1);
+      color: var(--green);
+    }
+
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .status-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .agent-status {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .agent-status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      background: var(--bg-elevated);
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    .agent-status-item .avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    .agent-status-item .avatar.gwen {
+      background: var(--green);
+    }
+
+    .agent-status-item .avatar.deepseek {
+      background: var(--cyan);
+    }
+
+    .agent-status-item .info {
+      flex: 1;
+    }
+
+    .agent-status-item .label {
+      color: var(--text-secondary);
+      display: block;
+    }
+
+    .agent-status-item .state {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* ═══ FOOTER ════════════════════════════════════════ */
+    .canvas-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-card);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .canvas-footer .step-indicator {
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    .canvas-footer .timer {
+      color: var(--text-primary);
+      font-weight: 500;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ═══ ANIMATIONS ════════════════════════════════════════ */
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══ COSMIC EFFECTS ═══════════════════════════════════ */
+    .cosmic-core {
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(0, 212, 255, 0.8), rgba(0, 150, 200, 0.4), transparent);
+      box-shadow: 
+        0 0 40px rgba(0, 212, 255, 0.6),
+        0 0 80px rgba(0, 212, 255, 0.3),
+        inset 0 0 40px rgba(0, 212, 255, 0.2),
+        0 0 120px rgba(0, 100, 150, 0.2);
+      border: 2px solid rgba(0, 212, 255, 0.4);
+      animation: cosmic-pulse 4s ease-in-out infinite;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    @keyframes cosmic-pulse {
+      0%, 100% { 
+        box-shadow: 
+          0 0 40px rgba(0, 212, 255, 0.6),
+          0 0 80px rgba(0, 212, 255, 0.3),
+          inset 0 0 40px rgba(0, 212, 255, 0.2),
+          0 0 120px rgba(0, 100, 150, 0.2);
+        transform: scale(1);
+      }
+      50% { 
+        box-shadow: 
+          0 0 60px rgba(0, 212, 255, 0.8),
+          0 0 120px rgba(0, 212, 255, 0.5),
+          inset 0 0 60px rgba(0, 212, 255, 0.3),
+          0 0 180px rgba(0, 100, 150, 0.3);
+        transform: scale(1.05);
+      }
+    }
+
+    .particle {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 4;
+      animation: float-particle 3s ease-in forwards;
+    }
+
+    .particle.cyan { background: rgba(0, 212, 255, 0.6); box-shadow: 0 0 8px rgba(0, 212, 255, 0.8); }
+    .particle.green { background: rgba(118, 185, 0, 0.6); box-shadow: 0 0 8px rgba(118, 185, 0, 0.8); }
+    .particle.pink { background: rgba(255, 107, 157, 0.6); box-shadow: 0 0 8px rgba(255, 107, 157, 0.8); }
+
+    @keyframes float-particle {
+      0% { opacity: 1; transform: translate(0, 0) scale(1); }
+      100% { opacity: 0; transform: translate(var(--tx), var(--ty))) scale(0.3); }
+    }
+
+    .energy-beam {
+      position: absolute;
+      background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.8);
+      filter: blur(1px);
+      animation: beam-flow 1.5s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    @keyframes beam-flow {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.8; }
+    }
+
+    .edge.active {
+      stroke: var(--cyan) !important;
+      stroke-width: 3 !important;
+      filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.8));
+      animation: edge-glow 1.5s ease-in-out infinite;
+    }
+
+    @keyframes edge-glow {
+      0%, 100% { filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.5)); }
+      50% { filter: drop-shadow(0 0 16px rgba(0, 212, 255, 1)); }
+    }
+
+    .node.active {
+      border-color: var(--cyan) !important;
+      box-shadow: 
+        0 0 20px rgba(0, 212, 255, 0.6),
+        0 0 40px rgba(0, 212, 255, 0.3),
+        inset 0 0 20px rgba(0, 212, 255, 0.1) !important;
+      animation: node-pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes node-pulse {
+      0%, 100% { 
+        box-shadow: 
+          0 0 20px rgba(0, 212, 255, 0.6),
+          0 0 40px rgba(0, 212, 255, 0.3),
+          inset 0 0 20px rgba(0, 212, 255, 0.1);
+      }
+      50% { 
+        box-shadow: 
+          0 0 30px rgba(0, 212, 255, 0.8),
+          0 0 60px rgba(0, 212, 255, 0.5),
+          inset 0 0 30px rgba(0, 212, 255, 0.2);
+      }
+    }
+
+    .efficiency-gauge {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 3px solid rgba(118, 185, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: var(--green);
+      background: radial-gradient(circle, rgba(118, 185, 0, 0.1), transparent);
+      box-shadow: 
+        inset 0 0 20px rgba(118, 185, 0, 0.1),
+        0 0 15px rgba(118, 185, 0, 0.2);
+      text-shadow: 0 0 10px rgba(118, 185, 0, 0.5);
+      z-index: 6;
+    }
+
+    .efficiency-gauge::before {
+      content: attr(data-percent);
+      position: absolute;
+      font-size: 12px;
+      bottom: 5px;
+      color: var(--text-secondary);
+    }
+
+    .notification {
+      animation: slideIn 0.3s ease;
+    }
+
+    .hidden { display: none }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Canvas Area -->
+    <div class="canvas-wrapper">
+      <div class="canvas-header">
+        <h1>
+          <span>⚙️</span>
+          The Machine
+        </h1>
+        <div style="font-size: 12px; color: var(--text-secondary);">
+          Self-Improvement Cycle
+        </div>
+      </div>
+
+      <svg id="canvas" style="position: absolute; top: 60px; left: 0; width: 100%; height: calc(100% - 120px);"></svg>
+      <div id="nodes-container" style="position: absolute; top: 60px; left: 0; width: 100%; height: calc(100% - 120px); pointer-events: none;"></div>
+
+      <div class="canvas-footer">
+        <div class="step-indicator" id="step-indicator">Step 1/5</div>
+        <div style="flex: 1;"></div>
+        <div class="timer" id="timer">00:00</div>
+        <div style="font-size: 11px;" id="status-text">Ready</div>
+      </div>
+    </div>
+
+    <!-- Control Panel -->
+    <div class="control-panel">
+      <!-- Playback Controls -->
+      <div class="control-section">
+        <h3>Playback</h3>
+        <div class="button-group">
+          <button id="play-btn" class="primary">▶ Play</button>
+          <button id="pause-btn" disabled>⏸ Pause</button>
+          <button id="step-btn">⏭ Step</button>
+          <button id="reset-btn">⟲ Reset</button>
+        </div>
+      </div>
+
+      <!-- Speed Control -->
+      <div class="control-section">
+        <div class="slider-group">
+          <label>Execution Speed</label>
+          <input type="range" id="speed-slider" min="0.5" max="3" step="0.5" value="1" />
+          <div style="font-size: 11px; color: var(--text-muted);" id="speed-label">1.0x</div>
+        </div>
+      </div>
+
+      <!-- Real-time Status -->
+      <div class="control-section">
+        <h3>Status</h3>
+        <div class="status-info running" id="real-time-status">
+          <div class="status-item">
+            <span>State:</span>
+            <strong id="state-text">Idle</strong>
+          </div>
+          <div class="status-item">
+            <span>Current:</span>
+            <strong id="current-node">—</strong>
+          </div>
+          <div class="status-item">
+            <span>Progress:</span>
+            <strong id="progress-text">0%</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Status -->
+      <div class="control-section">
+        <h3>Agents</h3>
+        <div class="agent-status">
+          <div class="agent-status-item">
+            <div class="avatar gwen">🧠</div>
+            <div class="info">
+              <span class="label">GWEN</span>
+              <span class="state" id="agent-gwen">Waiting</span>
+            </div>
+          </div>
+          <div class="agent-status-item">
+            <div class="avatar deepseek">🔬</div>
+            <div class="info">
+              <span class="label">deepseek-r1</span>
+              <span class="state" id="agent-deepseek">Idle</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="control-section">
+        <h3>Metrics</h3>
+        <div class="status-info">
+          <div class="status-item">
+            <span>Tool Success:</span>
+            <strong>94% → 97.2%</strong>
+          </div>
+          <div class="status-item">
+            <span>Routing Acc:</span>
+            <strong>78% → 89%</strong>
+          </div>
+          <div class="status-item">
+            <span>Avg Response:</span>
+            <strong>450ms → 485ms</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- File Operations -->
+      <div class="control-section">
+        <h3>Workflow</h3>
+        <div class="button-group" style="flex-direction: column;">
+          <button id="export-btn">📥 Export JSON</button>
+          <button id="import-btn">📤 Import JSON</button>
+          <button id="save-btn">💾 Save</button>
+        </div>
+      </div>
+
+      <!-- Workflow Info -->
+      <div class="control-section">
+        <h3>Info</h3>
+        <div class="status-info">
+          <div class="status-item">
+            <span>Workflow:</span>
+            <strong>Self-Improve</strong>
+          </div>
+          <div class="status-item">
+            <span>Nodes:</span>
+            <strong>5</strong>
+          </div>
+          <div class="status-item">
+            <span>Agents:</span>
+            <strong>2</strong>
+          </div>
+          <div class="status-item">
+            <span>Created:</span>
+            <strong>2026-04-01</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="import-file" accept=".json" style="display: none;">
+
+  <script>
+    // ═══════════════════════════════════════════════════════════
+    // THE MACHINE - Cosmic Workflow Execution Engine (Enhanced Demo)
+    // ═══════════════════════════════════════════════════════════
+
+    const NODES = [
+      { id: 'start', type: 'start', title: 'START', x: 100, y: 50 },
+      { id: 'detect', type: 'action', title: 'Detect Gap', agent: '🧠', x: 100, y: 200 },
+      { id: 'hypothesis', type: 'action', title: 'Generate\nHypothesis', agent: '🧠', x: 100, y: 360 },
+      { id: 'implement', type: 'action', title: 'Implement', agent: '🔬', x: 100, y: 520 },
+      { id: 'validate', type: 'action', title: 'Validate', agent: '🔬', x: 100, y: 680 },
+      { id: 'decision', type: 'decision', title: 'Improved?', x: 350, y: 680 },
+      { id: 'keep', type: 'action', title: 'KEEP', agent: '🧠', x: 580, y: 600 },
+      { id: 'revert', type: 'action', title: 'REVERT', agent: '🧠', x: 580, y: 760 },
+      { id: 'end', type: 'end', title: 'END\n✓', x: 800, y: 680 },
+    ];
+
+    const EDGES = [
+      { from: 'start', to: 'detect' },
+      { from: 'detect', to: 'hypothesis' },
+      { from: 'hypothesis', to: 'implement' },
+      { from: 'implement', to: 'validate' },
+      { from: 'validate', to: 'decision' },
+      { from: 'decision', to: 'keep', label: 'YES' },
+      { from: 'decision', to: 'revert', label: 'NO' },
+      { from: 'keep', to: 'end' },
+      { from: 'revert', to: 'end' },
+    ];
+
+    const EXECUTION_PATH = ['start', 'detect', 'hypothesis', 'implement', 'validate', 'decision', 'keep', 'end'];
+
+    let state = {
+      running: false,
+      currentStep: 0,
+      stepTimer: 0,
+      speed: 1,
+      completedNodes: new Set(),
+      activeNode: null,
+      agents: {
+        gwen: { x: 100, y: 50, state: 'Waiting' },
+        deepseek: { x: 100, y: 50, state: 'Idle' }
+      },
+      stepTimings: [0, 2000, 2500, 2000, 1800, 1200, 1500, 1000],
+      efficiency: 85,
+      throughput: 0,
+      latency: 450,
+      cpuUsage: 35
+    };
+
+    // ═══ Cosmic Effects ════════════════════════════════════
+    function createCosmicCore() {
+      const container = document.getElementById('nodes-container');
+      const svgViewBox = document.getElementById('canvas').getBoundingClientRect();
+      const centerX = svgViewBox.width / 2;
+      const centerY = svgViewBox.height / 2;
+
+      const core = document.createElement('div');
+      core.className = 'cosmic-core';
+      core.style.left = `${centerX - 60}px`;
+      core.style.top = `${centerY - 60}px`;
+      container.appendChild(core);
+    }
+
+    function spawnParticle(fromX, fromY, toX, toY, color = 'cyan') {
+      const container = document.getElementById('nodes-container');
+      const particle = document.createElement('div');
+      particle.className = `particle ${color}`;
+      
+      const dx = toX - fromX;
+      const dy = toY - fromY;
+      const size = 3 + Math.random() * 4;
+      
+      particle.style.width = `${size}px`;
+      particle.style.height = `${size}px`;
+      particle.style.left = `${fromX}px`;
+      particle.style.top = `${fromY}px`;
+      particle.style.setProperty('--tx', `${dx}px`);
+      particle.style.setProperty('--ty', `${dy}px`);
+      particle.style.animationDuration = `${1 + Math.random() * 2}s`;
+      
+      container.appendChild(particle);
+      
+      setTimeout(() => particle.remove(), 3000);
+    }
+
+    function createEnergyFlow(fromX, fromY, toX, toY) {
+      const svg = document.getElementById('canvas');
+      const dx = toX - fromX;
+      const dy = toY - fromY;
+      
+      // Spawn particles along the path
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+          spawnParticle(fromX, fromY, toX, toY, ['cyan', 'green', 'pink'][Math.floor(Math.random() * 3)]);
+        }, i * 200);
+      }
+    }
+
+    function highlightEdges(nodeId) {
+      const svg = document.getElementById('canvas');
+      const edges = svg.querySelectorAll('.edge');
+      
+      edges.forEach(edge => {
+        edge.classList.remove('active');
+        const className = edge.getAttribute('class');
+        if (className.includes(`edge-${nodeId}-`) || className.includes(`-${nodeId}`)) {
+          edge.classList.add('active');
+        }
+      });
+    }
+
+    // ═══ Setup ═══════════════════════════════════════════════
+    function setupCanvas() {
+      const svg = document.getElementById('canvas');
+      const container = document.getElementById('nodes-container');
+
+      // Draw edges
+      EDGES.forEach(edge => {
+        const fromNode = NODES.find(n => n.id === edge.from);
+        const toNode = NODES.find(n => n.id === edge.to);
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', fromNode.x + 80);
+        line.setAttribute('y1', fromNode.y + 50);
+        line.setAttribute('x2', toNode.x + 80);
+        line.setAttribute('y2', toNode.y - 30);
+        line.setAttribute('stroke', 'var(--border)');
+        line.setAttribute('stroke-width', '2');
+        line.setAttribute('marker-end', 'url(#arrowhead)');
+        line.classList.add('edge', `edge-${edge.from}-${edge.to}`);
+        svg.appendChild(line);
+      });
+
+      // Arrowhead marker
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+      marker.setAttribute('id', 'arrowhead');
+      marker.setAttribute('markerWidth', '10');
+      marker.setAttribute('markerHeight', '10');
+      marker.setAttribute('refX', '9');
+      marker.setAttribute('refY', '3');
+      marker.setAttribute('orient', 'auto');
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', '0 0, 10 3, 0 6');
+      polygon.setAttribute('fill', 'var(--border)');
+      marker.appendChild(polygon);
+      defs.appendChild(marker);
+      svg.appendChild(defs);
+
+      // Draw nodes
+      NODES.forEach(node => {
+        const nodeEl = document.createElement('div');
+        nodeEl.className = `node ${node.type}`;
+        nodeEl.id = `node-${node.id}`;
+        nodeEl.style.left = `${node.x}px`;
+        nodeEl.style.top = `${node.y}px`;
+
+        let content = `<div class="title">${node.title}</div>`;
+        if (node.agent) content += `<div class="agent">${node.agent}</div>`;
+        content += '<div class="progress"><div class="progress-bar"></div></div>';
+        content += '<div class="status">Ready</div>';
+
+        nodeEl.innerHTML = content;
+        container.appendChild(nodeEl);
+      });
+
+      // Agent avatars
+      ['gwen', 'deepseek'].forEach(agent => {
+        const avatar = document.createElement('div');
+        avatar.className = `agent-avatar ${agent}`;
+        avatar.id = `avatar-${agent}`;
+        avatar.textContent = agent === 'gwen' ? '🧠' : '🔬';
+        avatar.style.left = '100px';
+        avatar.style.top = '50px';
+        container.appendChild(avatar);
+      });
+
+      // Create cosmic core
+      createCosmicCore();
+    }
+
+    // ═══ Playback Controls ═══════════════════════════════════
+    document.getElementById('play-btn').addEventListener('click', () => {
+      state.running = true;
+      state.currentStep = 0;
+      state.completedNodes.clear();
+      state.stepTimer = 0;
+      document.getElementById('pause-btn').disabled = false;
+      document.getElementById('play-btn').disabled = true;
+      document.getElementById('reset-btn').disabled = false;
+      updateStatus('Running');
+    });
+
+    document.getElementById('pause-btn').addEventListener('click', () => {
+      state.running = false;
+      document.getElementById('pause-btn').disabled = true;
+      document.getElementById('play-btn').disabled = false;
+      updateStatus('Paused');
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      state.running = false;
+      state.currentStep = 0;
+      state.completedNodes.clear();
+      state.stepTimer = 0;
+      state.efficiency = 85;
+      document.getElementById('pause-btn').disabled = true;
+      document.getElementById('play-btn').disabled = false;
+      document.querySelectorAll('.node').forEach(n => {
+        n.classList.remove('active', 'complete');
+        n.querySelector('.progress-bar').style.width = '0%';
+      });
+      document.querySelectorAll('.edge').forEach(e => {
+        e.classList.remove('active');
+        e.setAttribute('stroke', 'var(--border)');
+        e.setAttribute('stroke-width', '2');
+      });
+      document.querySelectorAll('.particle').forEach(p => p.remove());
+      updateStatus('Ready');
+    });
+
+    document.getElementById('step-btn').addEventListener('click', () => {
+      if (state.currentStep < EXECUTION_PATH.length) {
+        executeStep();
+        state.currentStep++;
+      }
+    });
+
+    document.getElementById('speed-slider').addEventListener('change', (e) => {
+      state.speed = parseFloat(e.target.value);
+      document.getElementById('speed-label').textContent = `${state.speed.toFixed(1)}x`;
+    });
+
+    // ═══ Execution Engine ═══════════════════════════════════
+    function executeStep() {
+      if (state.currentStep >= EXECUTION_PATH.length) {
+        state.running = false;
+        updateStatus('Complete ✓');
+        state.efficiency = Math.min(100, state.efficiency + 5);
+        return;
+      }
+
+      const nodeId = EXECUTION_PATH[state.currentStep];
+      const node = NODES.find(n => n.id === nodeId);
+
+      // Highlight active node
+      document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
+      document.getElementById(`node-${nodeId}`).classList.add('active');
+
+      // Highlight edges
+      highlightEdges(nodeId);
+
+      // Create energy flow from cosmic core
+      const svgViewBox = document.getElementById('canvas').getBoundingClientRect();
+      const centerX = svgViewBox.width / 2;
+      const centerY = svgViewBox.height / 2;
+      createEnergyFlow(centerX, centerY, node.x + 80, node.y + 50);
+
+      // Update agent position and state
+      let agentName = null;
+      if (node.agent === '🧠') {
+        agentName = 'gwen';
+        state.agents.gwen = { x: node.x, y: node.y, state: 'Working' };
+        updateAgentStatus('gwen', 'Working');
+      } else if (node.agent === '🔬') {
+        agentName = 'deepseek';
+        state.agents.deepseek = { x: node.x, y: node.y, state: 'Working' };
+        updateAgentStatus('deepseek', 'Working');
+      }
+
+      // Move avatar with smooth animation
+      if (agentName) {
+        const avatar = document.getElementById(`avatar-${agentName}`);
+        avatar.style.transition = `all 0.6s cubic-bezier(0.4, 0, 0.2, 1)`;
+        avatar.style.left = `${node.x}px`;
+        avatar.style.top = `${node.y}px`;
+      }
+
+      // Update UI
+      document.getElementById('step-indicator').textContent = `Step ${state.currentStep + 1}/${EXECUTION_PATH.length}`;
+      document.getElementById('current-node').textContent = node.title;
+      const progress = Math.round((state.currentStep + 1) / EXECUTION_PATH.length * 100);
+      document.getElementById('progress-text').textContent = `${progress}%`;
+      document.getElementById('status-text').textContent = node.title;
+
+      // Simulate metrics improvement
+      state.throughput = (state.currentStep + 1) * 8.5;
+      state.latency = Math.max(350, 450 - state.currentStep * 15);
+      state.efficiency = Math.min(99, state.efficiency + 1.2);
+      state.cpuUsage = 30 + state.currentStep * 5;
+
+      updateMetrics();
+
+      // Mark complete
+      setTimeout(() => {
+        document.getElementById(`node-${nodeId}`).classList.add('complete');
+        if (agentName) updateAgentStatus(agentName, 'Waiting');
+        document.querySelectorAll('.edge.active').forEach(e => e.classList.remove('active'));
+      }, state.stepTimings[state.currentStep] / state.speed);
+    }
+
+    function updateStatus(text) {
+      const el = document.getElementById('real-time-status');
+      el.classList.toggle('running', text.includes('Running'));
+      document.getElementById('state-text').textContent = text;
+    }
+
+    function updateAgentStatus(agent, status) {
+      const el = document.getElementById(`agent-${agent}`);
+      if (el) el.textContent = status;
+    }
+
+    function updateMetrics() {
+      document.getElementById('throughput').textContent = `${state.throughput.toFixed(1)} ops/s`;
+      document.getElementById('latency').textContent = `${Math.round(state.latency)}ms`;
+      document.getElementById('efficiency').textContent = `${Math.round(state.efficiency)}%`;
+      document.getElementById('nodes-visited').textContent = `${state.currentStep} / 9`;
+    }
+
+    // ═══ Main Animation Loop ═══════════════════════════════
+    let startTime = 0;
+    function animate(time) {
+      startTime = startTime || time;
+      const elapsed = time - startTime;
+
+      if (state.running) {
+        state.stepTimer += 16; // ~60fps
+        
+        if (state.stepTimer >= (state.stepTimings[state.currentStep] || 2000) / state.speed) {
+          executeStep();
+          state.currentStep++;
+          state.stepTimer = 0;
+        }
+      }
+
+      // Update timer display
+      const seconds = Math.floor(elapsed / 1000);
+      const millis = elapsed % 1000;
+      document.getElementById('timer').textContent = 
+        `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+
+      requestAnimationFrame(animate);
+    }
+
+    // ═══ File Operations ═══════════════════════════════════
+    document.getElementById('export-btn').addEventListener('click', () => {
+      const workflow = {
+        name: 'Self-Improvement Cycle',
+        nodes: NODES,
+        edges: EDGES,
+        executionPath: EXECUTION_PATH,
+        metrics: {
+          efficiency: state.efficiency,
+          throughput: state.throughput,
+          latency: state.latency
+        },
+        exportedAt: new Date().toISOString()
+      };
+      const json = JSON.stringify(workflow, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'workflow-self-improvement.json';
+      a.click();
+    });
+
+    document.getElementById('import-btn').addEventListener('click', () => {
+      document.getElementById('import-file').click();
+    });
+
+    document.getElementById('import-file').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const workflow = JSON.parse(event.target.result);
+        alert(`Imported: ${workflow.name}\n${workflow.nodes.length} nodes, ${workflow.edges.length} edges`);
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById('save-btn').addEventListener('click', () => {
+      alert('Workflow saved to server!');
+    });
+
+    // ═══ Initialize ════════════════════════════════════════
+    setupCanvas();
+    updateMetrics();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

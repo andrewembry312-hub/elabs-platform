@@ -1,0 +1,50 @@
+# Windows + Caddy v2 config — E-Labs public endpoints.
+# Run:  caddy run --config "C:\path\to\AI-Machine\Waitress\Caddyfile.windows.example"
+# Or copy to Caddyfile next to caddy.exe and run:  caddy run
+#
+# Prerequisites:
+#   1) DNS A records → your public IP:
+#        www.elabs.com
+#        gateway.elabs.com
+#   2) Router: forward TCP 80 + 443 to this PC.
+#   3) Firewall (Admin PowerShell):
+#        New-NetFirewallRule -DisplayName "Caddy HTTP"  -Direction Inbound -LocalPort 80  -Protocol TCP -Action Allow
+#        New-NetFirewallRule -DisplayName "Caddy HTTPS" -Direction Inbound -LocalPort 443 -Protocol TCP -Action Allow
+#   4) Services running on loopback:
+#        Waitress  (consulting site)  → 127.0.0.1:8080  (start with .\run-with-caddy.ps1)
+#        OpenClaw  (AI gateway)       → 127.0.0.1:18789  (starts automatically with main backend)
+
+# ── Consulting site ──────────────────────────────────────────────────────────
+www.elabs.com {
+	reverse_proxy 127.0.0.1:8080
+}
+
+# ── OpenClaw AI Gateway ──────────────────────────────────────────────────────
+# Clients must send:  Authorization: Bearer <OPENCLAW_BEARER_TOKEN>
+# Set the token in the backend environment:  $env:OPENCLAW_BEARER_TOKEN = "your-secret"
+gateway.elabs.com {
+	# Fast-fail requests missing Authorization (except /health probe)
+	@no_auth {
+		not header Authorization *
+		not path /health
+	}
+	respond @no_auth 401 {
+		body `{"error":"Authorization header required"}`
+		close
+	}
+
+	# CORS pre-flight
+	@cors_preflight method OPTIONS
+	handle @cors_preflight {
+		header Access-Control-Allow-Origin "https://copilot.elabs.com"
+		header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+		header Access-Control-Allow-Headers "Authorization, Content-Type"
+		header Access-Control-Max-Age "86400"
+		respond 204
+	}
+
+	header Access-Control-Allow-Origin "https://copilot.elabs.com"
+	header Access-Control-Allow-Headers "Authorization, Content-Type"
+
+	reverse_proxy 127.0.0.1:18789
+}

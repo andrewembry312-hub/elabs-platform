@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R&D Model Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-deep: #050505;
+    --bg-primary: #0a0a0a;
+    --bg-card: #111111;
+    --bg-elevated: #161616;
+    --bg-hover: #1a1a1a;
+    --green: #76b900;
+    --green-bright: #95d600;
+    --green-neon: #00ff41;
+    --green-glow: rgba(118, 185, 0, 0.12);
+    --green-glow-strong: rgba(118, 185, 0, 0.25);
+    --border: #1e1e1e;
+    --border-light: #2a2a2a;
+    --text-primary: #e8e8e8;
+    --text-secondary: #999;
+    --text-muted: #555;
+    --error: #ff4444;
+    --orange: #ffa000;
+    --blue: #4fc3f7;
+    --purple: #bb86fc;
+    --radius: 8px;
+    --transition: 0.2s ease;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ═══ TOPBAR ══════════════════════════════════════════ */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 24px;
+    background: var(--bg-deep);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar h1 {
+    font-size: 18px; font-weight: 600;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .topbar h1 span.badge {
+    background: var(--green); color: #000;
+    font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 10px; text-transform: uppercase;
+  }
+  .topbar-actions { display: flex; align-items: center; gap: 12px; }
+  .topbar-actions a {
+    color: var(--text-secondary); text-decoration: none; font-size: 13px;
+    padding: 6px 12px; border-radius: var(--radius);
+    border: 1px solid var(--border); transition: all var(--transition);
+  }
+  .topbar-actions a:hover { color: var(--green); border-color: var(--green); }
+
+  /* ═══ FILTER BAR ═════════════════════════════════════ */
+  .filter-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 14px 24px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+  }
+  .filter-bar label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+  .filter-bar select, .filter-bar input {
+    background: var(--bg-elevated); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 10px; font-size: 12px; font-family: inherit;
+    outline: none; transition: border-color var(--transition);
+  }
+  .filter-bar select:focus, .filter-bar input:focus { border-color: var(--green); }
+  .pill-group { display: flex; gap: 0; }
+  .pill {
+    padding: 5px 14px; font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border); background: var(--bg-elevated);
+    color: var(--text-secondary); cursor: pointer; transition: all var(--transition);
+  }
+  .pill:first-child { border-radius: 6px 0 0 6px; }
+  .pill:last-child { border-radius: 0 6px 6px 0; }
+  .pill.active { background: var(--green); color: #000; border-color: var(--green); }
+
+  /* ═══ DASHBOARD GRID ═════════════════════════════════ */
+  .dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 20px 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    overflow: hidden;
+  }
+  .card.full-width { grid-column: 1 / -1; }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .card-header h2 {
+    font-size: 14px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-header .subtitle { font-size: 11px; color: var(--text-muted); }
+
+  /* ═══ RANKING BARS ═══════════════════════════════════ */
+  .ranking-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+  }
+  .ranking-row:last-child { border-bottom: none; }
+  .rank-num {
+    width: 24px; text-align: center;
+    font-size: 11px; font-weight: 700; color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .rank-num.top1 { color: var(--green-neon); }
+  .rank-num.top2 { color: var(--green-bright); }
+  .rank-num.top3 { color: var(--green); }
+  .rank-name {
+    width: 160px; min-width: 120px;
+    font-size: 12px; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rank-bar-wrap {
+    flex: 1; height: 18px;
+    background: var(--bg-elevated); border-radius: 3px;
+    overflow: hidden; position: relative;
+  }
+  .rank-bar {
+    height: 100%; border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+  .rank-bar.local { background: linear-gradient(90deg, var(--green), var(--green-bright)); }
+  .rank-bar.cloud { background: linear-gradient(90deg, var(--blue), var(--purple)); }
+  .rank-score {
+    width: 40px; text-align: right;
+    font-size: 12px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .rank-meta {
+    width: 80px; text-align: right;
+    font-size: 10px; color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .loc-badge {
+    font-size: 9px; font-weight: 600; padding: 1px 5px;
+    border-radius: 3px; text-transform: uppercase;
+  }
+  .loc-badge.local { background: rgba(118,185,0,0.15); color: var(--green); }
+  .loc-badge.cloud { background: rgba(79,195,247,0.15); color: var(--blue); }
+
+  /* ═══ HEATMAP TABLE ══════════════════════════════════ */
+  .heatmap-wrap { overflow-x: auto; }
+  .heatmap {
+    width: 100%; border-collapse: collapse;
+    font-size: 11px;
+  }
+  .heatmap th {
+    padding: 6px 8px; text-align: center;
+    font-weight: 600; font-size: 10px; text-transform: uppercase;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--bg-card);
+  }
+  .heatmap th:first-child { text-align: left; }
+  .heatmap td {
+    padding: 5px 8px; text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    border-bottom: 1px solid var(--border);
+  }
+  .heatmap td:first-child {
+    text-align: left; font-family: 'Inter', sans-serif; font-weight: 500;
+    white-space: nowrap;
+  }
+  .heatmap tr:hover { background: var(--bg-hover); }
+  .hm-cell {
+    display: inline-block; width: 44px; padding: 2px 0;
+    border-radius: 3px; font-weight: 600; font-size: 11px;
+  }
+
+  /* ═══ COST COMPARISON ════════════════════════════════ */
+  .cost-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 0; border-bottom: 1px solid var(--border);
+  }
+  .cost-row:last-child { border-bottom: none; }
+  .cost-name { width: 160px; font-size: 12px; font-weight: 500; }
+  .cost-bar-wrap {
+    flex: 1; height: 14px;
+    background: var(--bg-elevated); border-radius: 3px;
+    overflow: hidden;
+  }
+  .cost-bar {
+    height: 100%; border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+  .cost-bar.free { background: var(--green-neon); }
+  .cost-bar.cheap { background: var(--green); }
+  .cost-bar.moderate { background: var(--orange); }
+  .cost-bar.expensive { background: var(--error); }
+  .cost-val {
+    width: 80px; text-align: right;
+    font-size: 11px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ═══ RECOMMEND PANEL ════════════════════════════════ */
+  .rec-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    padding: 12px; margin-bottom: 10px;
+  }
+  .rec-card:last-child { margin-bottom: 0; }
+  .rec-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .rec-name { font-size: 14px; font-weight: 600; }
+  .rec-score {
+    font-size: 22px; font-weight: 700; color: var(--green);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .rec-details { font-size: 11px; color: var(--text-secondary); }
+  .rec-tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .rec-tag {
+    font-size: 10px; padding: 2px 8px; border-radius: 4px;
+    background: var(--green-glow); color: var(--green);
+    font-weight: 500;
+  }
+
+  /* ═══ DETAIL MODAL ═══════════════════════════════════ */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-content {
+    background: var(--bg-card); border: 1px solid var(--border-light);
+    border-radius: 12px; padding: 24px;
+    width: 520px; max-width: 90vw; max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal-close {
+    float: right; background: none; border: none;
+    color: var(--text-muted); font-size: 18px; cursor: pointer;
+  }
+  .modal-close:hover { color: var(--text-primary); }
+  .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+  .modal-row {
+    display: flex; justify-content: space-between;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .modal-row .label { color: var(--text-secondary); }
+  .modal-row .value { font-weight: 500; }
+  .modal-scores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0; }
+  .modal-score-item { text-align: center; }
+  .modal-score-item .cat { font-size: 10px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px; }
+  .modal-score-item .val { font-size: 20px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  .modal-tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+
+  /* ═══ STATS ROW ══════════════════════════════════════ */
+  .stats-row {
+    display: flex; gap: 16px; padding: 0 24px 0;
+    margin-top: 16px; margin-bottom: -4px;
+  }
+  .stat-chip {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 16px; flex: 1;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .stat-chip .stat-val {
+    font-size: 22px; font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--green);
+  }
+  .stat-chip .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; }
+
+  /* ═══ SECTION DIVIDER ═════════════════════════════════ */
+  .section-divider {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 0;
+  }
+  .section-divider h2 {
+    font-size: 16px; font-weight: 700; white-space: nowrap;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-divider .line {
+    flex: 1; height: 1px; background: var(--border-light);
+  }
+
+  /* ═══ ALERT CARDS ════════════════════════════════════ */
+  .alert-card {
+    background: var(--bg-elevated); border-radius: var(--radius);
+    border-left: 3px solid var(--orange); padding: 12px; margin-bottom: 8px;
+  }
+  .alert-card:last-child { margin-bottom: 0; }
+  .alert-card.upcoming { border-left-color: var(--green); }
+  .alert-card.rumor { border-left-color: var(--purple); }
+  .alert-card.confirmed { border-left-color: var(--blue); }
+  .alert-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .alert-model { font-size: 13px; font-weight: 600; }
+  .alert-type {
+    font-size: 9px; font-weight: 700; padding: 2px 6px;
+    border-radius: 3px; text-transform: uppercase;
+  }
+  .alert-type.upcoming { background: rgba(118,185,0,0.15); color: var(--green); }
+  .alert-type.rumor { background: rgba(187,134,252,0.15); color: var(--purple); }
+  .alert-detail { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
+  .alert-action {
+    font-size: 11px; color: var(--green); margin-top: 6px;
+    font-weight: 500;
+  }
+  .alert-source { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ═══ FRESHNESS BAR ══════════════════════════════════ */
+  .sweep-btn {
+    position: fixed; bottom: 12px; right: 20px; z-index: 200;
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 8px 16px; cursor: pointer; font-size: 13px; font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3); transition: opacity .2s;
+  }
+  .sweep-btn:hover { opacity: .85; }
+  .sweep-btn:disabled { opacity: .5; cursor: wait; }
+
+  /* ═══ STAGING PANEL ══════════════════════════════════ */
+  .staging-panel {
+    padding: 20px 24px;
+    border-top: 2px solid var(--accent);
+  }
+  .staging-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .staging-header h2 { font-size: 18px; margin: 0; }
+  .staging-stats {
+    display: flex; gap: 12px; font-size: 12px; color: var(--text-secondary);
+  }
+  .staging-stats .stat {
+    padding: 3px 10px; border-radius: 12px;
+    background: var(--bg-card); border: 1px solid var(--border);
+  }
+  .staging-stats .stat b { color: var(--accent); }
+  .staging-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 18px; margin-bottom: 10px;
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .staging-card .sc-info { flex: 1; min-width: 0; }
+  .staging-card .sc-name {
+    font-weight: 600; font-size: 14px; color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .staging-card .sc-meta {
+    font-size: 11px; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .staging-card .sc-summary {
+    font-size: 12px; color: var(--text-secondary); margin-top: 6px;
+    max-height: 40px; overflow: hidden;
+  }
+  .staging-card .sc-actions {
+    display: flex; gap: 6px; flex-shrink: 0; align-items: center;
+  }
+  .staging-card .sc-actions button {
+    border: none; border-radius: 6px; padding: 6px 14px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .staging-card .btn-approve { background: var(--green); color: #fff; }
+  .staging-card .btn-reject { background: #6b2c2c; color: #ffaaaa; }
+  .staging-card .btn-defer { background: var(--bg-input); color: var(--text-secondary); }
+  .staging-card .btn-approve:hover { opacity: .85; }
+  .staging-card .btn-reject:hover { opacity: .85; }
+  .staging-card .btn-defer:hover { opacity: .85; }
+  .staging-empty {
+    text-align: center; padding: 30px; color: var(--text-muted); font-size: 13px;
+  }
+  .relevance-badge {
+    display: inline-block; padding: 1px 7px; border-radius: 8px; font-size: 10px;
+    font-weight: 600;
+  }
+  .rel-high { background: rgba(74,222,128,.15); color: var(--green-neon); }
+  .rel-med { background: rgba(251,191,36,.15); color: var(--orange); }
+  .rel-low { background: rgba(148,163,184,.15); color: var(--text-muted); }
+  .freshness-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 24px;
+    background: var(--bg-card); border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--text-secondary);
+  }
+  .freshness-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .freshness-dot.fresh { background: var(--green-neon); }
+  .freshness-dot.aging { background: var(--orange); }
+  .freshness-dot.stale { background: var(--error); }
+
+  /* ═══ MODALITY PILLS ═════════════════════════════════ */
+  .modality-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .mod-pill {
+    padding: 4px 12px; font-size: 11px; font-weight: 500;
+    border: 1px solid var(--border); border-radius: 14px;
+    background: var(--bg-elevated); color: var(--text-secondary);
+    cursor: pointer; transition: all var(--transition);
+  }
+  .mod-pill:hover { border-color: var(--green); color: var(--text-primary); }
+  .mod-pill.active { background: var(--green); color: #000; border-color: var(--green); }
+
+  /* ═══ RESPONSIVE ═════════════════════════════════════ */
+  @media (max-width: 900px) {
+    .dashboard { grid-template-columns: 1fr; }
+    .stats-row { flex-wrap: wrap; }
+    .stat-chip { min-width: 120px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <h1>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-6"/></svg>
+    R&amp;D Model Dashboard
+    <span class="badge">RTX 3080</span>
+  </h1>
+  <div class="topbar-actions">
+    <a href="/">&#8592; Back to Chat</a>
+  </div>
+</div>
+
+<!-- STATS ROW -->
+<div class="stats-row" id="stats-row"></div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <label>Rank by:</label>
+  <select id="filter-category">
+    <option value="overall">Overall</option>
+    <option value="reasoning">Reasoning</option>
+    <option value="coding">Coding</option>
+    <option value="writing">Writing</option>
+    <option value="math">Math</option>
+    <option value="instruction">Instruction</option>
+    <option value="multilingual">Multilingual</option>
+    <option value="safety">Safety</option>
+  </select>
+
+  <label style="margin-left:16px">Location:</label>
+  <div class="pill-group" id="loc-pills">
+    <div class="pill active" data-loc="">All</div>
+    <div class="pill" data-loc="local">Local</div>
+    <div class="pill" data-loc="cloud">Cloud</div>
+  </div>
+
+  <label style="margin-left:16px">Budget:</label>
+  <select id="filter-budget">
+    <option value="any">Any</option>
+    <option value="free">Free only</option>
+    <option value="cheap">Cheap (&lt;$5/M)</option>
+  </select>
+
+  <label style="margin-left:16px">Tokens:</label>
+  <input type="number" id="filter-tokens" value="1000" min="1" max="100000000" style="width:100px">
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard">
+
+  <!-- Ranking Bars -->
+  <div class="card">
+    <div class="card-header">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        Model Rankings
+      </h2>
+      <div class="subtitle" id="ranking-subtitle">by Overall score</div>
+    </div>
+    <div id="ranking-list"></div>
+  </div>
+
+  <!-- Recommendations -->
+  <div class="card">
+    <div class="card-header">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        Top Picks
+      </h2>
+      <div class="subtitle" id="rec-subtitle">for your task &amp; budget</div>
+    </div>
+    <div id="rec-list"></div>
+  </div>
+
+  <!-- Feature Heatmap -->
+  <div class="card full-width">
+    <div class="card-header">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Feature Heatmap
+      </h2>
+      <div class="subtitle">Score matrix across all categories — click a row for details</div>
+    </div>
+    <div class="heatmap-wrap">
+      <table class="heatmap" id="heatmap-table">
+        <thead><tr id="hm-header"></tr></thead>
+        <tbody id="hm-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Cost Comparison -->
+  <div class="card">
+    <div class="card-header">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        Cost Comparison
+      </h2>
+      <div class="subtitle" id="cost-subtitle">for 1,000 output tokens</div>
+    </div>
+    <div id="cost-list"></div>
+  </div>
+
+  <!-- Speed comparison -->
+  <div class="card">
+    <div class="card-header">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Speed (tok/s)
+      </h2>
+      <div class="subtitle">Tokens per second — local RTX 3080 vs cloud API</div>
+    </div>
+    <div id="speed-list"></div>
+  </div>
+
+  <!-- ═══ MULTIMODAL SECTION ═══════════════════════════ -->
+
+  <div class="section-divider">
+    <h2>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="10" r="2"/><path d="M22 15l-5-5L5 22"/></svg>
+      Multimodal Models
+    </h2>
+    <div class="line"></div>
+    <div class="subtitle" style="font-size:11px;color:var(--text-muted)">Image &middot; Video &middot; Voice &middot; Music &middot; 3D</div>
+  </div>
+
+  <!-- Multimodal filter -->
+  <div class="card full-width" style="padding:12px 16px;">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <label style="font-size:12px;color:var(--text-secondary);font-weight:500;">Modality:</label>
+      <div class="modality-pills" id="modality-pills" style="margin-bottom:0">
+        <div class="mod-pill active" data-mod="">All</div>
+        <div class="mod-pill" data-mod="text_to_image">Image Gen</div>
+        <div class="mod-pill" data-mod="text_to_video">Video Gen</div>
+        <div class="mod-pill" data-mod="image_to_video">Img→Video</div>
+        <div class="mod-pill" data-mod="text_to_speech">TTS</div>
+        <div class="mod-pill" data-mod="voice_clone">Voice Clone</div>
+        <div class="mod-pill" data-mod="speech_to_text">STT</div>
+        <div class="mod-pill" data-mod="text_to_music">Music</div>
+        <div class="mod-pill" data-mod="text_to_3d">3D</div>
+      </div>
+      <label style="font-size:12px;color:var(--text-secondary);font-weight:500;margin-left:auto;">Score:</label>
+      <select id="mm-category" style="background:var(--bg-elevated);color:var(--text-primary);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;">
+        <option value="quality">Quality</option>
+        <option value="speed">Speed</option>
+        <option value="controllability">Control</option>
+        <option value="consistency">Consistency</option>
+        <option value="versatility">Versatility</option>
+        <option value="cost_efficiency">Cost Efficiency</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Multimodal Rankings -->
+  <div class="card">
+    <div class="card-header">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        Multimodal Rankings
+      </h2>
+      <div class="subtitle" id="mm-ranking-subtitle">by Quality</div>
+    </div>
+    <div id="mm-ranking-list"></div>
+  </div>
+
+  <!-- Alerts & Upcoming -->
+  <div class="card">
+    <div class="card-header">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        Alerts &amp; Upcoming
+      </h2>
+      <div class="subtitle">New releases, leaks, whispers</div>
+    </div>
+    <div id="alerts-list"></div>
+  </div>
+
+  <!-- Multimodal Heatmap -->
+  <div class="card full-width">
+    <div class="card-header">
+      <h2>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Multimodal Heatmap
+      </h2>
+      <div class="subtitle">All modalities — click a row for details</div>
+    </div>
+    <div class="heatmap-wrap">
+      <table class="heatmap" id="mm-heatmap-table">
+        <thead><tr id="mm-hm-header"></tr></thead>
+        <tbody id="mm-hm-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- STAGING REVIEW PANEL -->
+<div class="staging-panel" id="staging-panel">
+  <div class="staging-header">
+    <h2>📋 Staging — Model Candidates</h2>
+    <div class="staging-stats" id="staging-stats"></div>
+  </div>
+  <div id="staging-list"></div>
+</div>
+
+<!-- FRESHNESS BAR -->
+<div class="freshness-bar" id="freshness-bar"></div>
+<button id="sweep-btn" class="sweep-btn" title="Run research sweep (arXiv + GitHub + HuggingFace + Ollama)">&#x1F50D; Run Sweep</button>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal-content" id="modal-body"></div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const API = '';  // same origin
+  let _benchmarks = [];
+  let _mmBenchmarks = [];
+  let _currentCategory = 'overall';
+  let _currentLocation = '';
+  let _currentBudget = 'any';
+  let _currentTokens = 1000;
+  let _currentModality = '';
+  let _currentMmCategory = 'quality';
+
+  // ── Fetch helpers ──────────────────────────────────────────────
+  async function fetchJSON(path) {
+    const r = await fetch(API + path);
+    if (!r.ok) throw new Error(`API error ${r.status}`);
+    return r.json();
+  }
+
+  // ── Color helpers ──────────────────────────────────────────────
+  function scoreColor(score) {
+    if (score >= 85) return '#00ff41';
+    if (score >= 70) return '#76b900';
+    if (score >= 55) return '#ffa000';
+    if (score >= 40) return '#ff6600';
+    return '#ff4444';
+  }
+  function scoreBg(score) {
+    if (score >= 85) return 'rgba(0,255,65,0.18)';
+    if (score >= 70) return 'rgba(118,185,0,0.18)';
+    if (score >= 55) return 'rgba(255,160,0,0.18)';
+    if (score >= 40) return 'rgba(255,102,0,0.18)';
+    return 'rgba(255,68,68,0.18)';
+  }
+  function costClass(cost) {
+    if (cost === 0) return 'free';
+    if (cost < 0.005) return 'cheap';
+    if (cost < 0.05) return 'moderate';
+    return 'expensive';
+  }
+
+  // ── Init ───────────────────────────────────────────────────────
+  async function init() {
+    try {
+      const [bm, mm] = await Promise.all([
+        fetchJSON('/api/dashboard/benchmarks'),
+        fetchJSON('/api/dashboard/multimodal'),
+      ]);
+      _benchmarks = bm;
+      _mmBenchmarks = mm;
+      renderStats();
+      await refreshAll();
+      await refreshMultimodal();
+      await renderAlerts();
+      await renderFreshness();
+      bindEvents();
+    } catch (e) {
+      console.error('Dashboard init failed:', e);
+      document.querySelector('.dashboard').innerHTML =
+        `<div class="card full-width" style="text-align:center;padding:40px;color:var(--error);">
+           Failed to load dashboard data. Is the server running?<br>
+           <small style="color:var(--text-muted)">${e.message}</small>
+         </div>`;
+    }
+  }
+
+  // ── Stats Row ──────────────────────────────────────────────────
+  function renderStats() {
+    const local = _benchmarks.filter(m => m.location === 'local');
+    const cloud = _benchmarks.filter(m => m.location === 'cloud');
+    const avgLocal = local.length
+      ? Math.round(local.reduce((s,m) => s + m.scores.overall, 0) / local.length) : 0;
+    const avgCloud = cloud.length
+      ? Math.round(cloud.reduce((s,m) => s + m.scores.overall, 0) / cloud.length) : 0;
+    const maxTok = Math.max(..._benchmarks.map(m => m.tok_s || 0));
+
+    document.getElementById('stats-row').innerHTML = `
+      <div class="stat-chip"><div class="stat-val">${_benchmarks.length}</div><div class="stat-label">Models Tracked</div></div>
+      <div class="stat-chip"><div class="stat-val">${local.length}</div><div class="stat-label">Local (RTX 3080)</div></div>
+      <div class="stat-chip"><div class="stat-val">${cloud.length}</div><div class="stat-label">Cloud APIs</div></div>
+      <div class="stat-chip"><div class="stat-val">${avgLocal}</div><div class="stat-label">Avg Local Score</div></div>
+      <div class="stat-chip"><div class="stat-val">${avgCloud}</div><div class="stat-label">Avg Cloud Score</div></div>
+      <div class="stat-chip"><div class="stat-val">${maxTok}</div><div class="stat-label">Peak tok/s</div></div>
+    `;
+  }
+
+  // ── Refresh all panels ─────────────────────────────────────────
+  async function refreshAll() {
+    await Promise.all([
+      renderRankings(),
+      renderRecommendations(),
+      renderHeatmap(),
+      renderCost(),
+      renderSpeed(),
+    ]);
+  }
+
+  // ── Rankings ───────────────────────────────────────────────────
+  async function renderRankings() {
+    const loc = _currentLocation || undefined;
+    let url = `/api/dashboard/rankings?category=${_currentCategory}`;
+    if (loc) url += `&location=${loc}`;
+    const data = await fetchJSON(url);
+
+    document.getElementById('ranking-subtitle').textContent =
+      `by ${_currentCategory}${loc ? ` — ${loc} only` : ''}`;
+
+    const maxScore = data.length ? data[0].score : 100;
+    document.getElementById('ranking-list').innerHTML = data.map((m, i) => `
+      <div class="ranking-row" style="cursor:pointer" onclick="window._showDetail('${m.id}')">
+        <div class="rank-num ${i===0?'top1':i===1?'top2':i===2?'top3':''}">${m.rank}</div>
+        <div class="rank-name">${m.name}</div>
+        <span class="loc-badge ${m.location}">${m.location}</span>
+        <div class="rank-bar-wrap">
+          <div class="rank-bar ${m.location}" style="width:${(m.score/100)*100}%"></div>
+        </div>
+        <div class="rank-score" style="color:${scoreColor(m.score)}">${m.score}</div>
+        <div class="rank-meta">${m.tok_s} t/s</div>
+      </div>
+    `).join('');
+  }
+
+  // ── Recommendations ────────────────────────────────────────────
+  async function renderRecommendations() {
+    const data = await fetchJSON(
+      `/api/dashboard/recommend?task=${_currentCategory}&budget=${_currentBudget}`
+    );
+    document.getElementById('rec-subtitle').textContent =
+      `for ${_currentCategory} — budget: ${_currentBudget}`;
+
+    document.getElementById('rec-list').innerHTML = data.map(m => `
+      <div class="rec-card" style="cursor:pointer" onclick="window._showDetail('${m.id}')">
+        <div class="rec-header">
+          <div>
+            <div class="rec-name">${m.name}</div>
+            <div class="rec-details">
+              <span class="loc-badge ${m.location}" style="margin-right:4px">${m.location}</span>
+              ${m.tok_s} tok/s &middot; ${m.cost_display} &middot; ${m.restrictions} restrictions
+            </div>
+          </div>
+          <div class="rec-score">${m.score}</div>
+        </div>
+        <div class="rec-tags">
+          ${m.strengths.map(s => `<span class="rec-tag">${s.replace(/_/g,' ')}</span>`).join('')}
+        </div>
+      </div>
+    `).join('') || '<div style="color:var(--text-muted);text-align:center;padding:20px;">No models match this filter</div>';
+  }
+
+  // ── Heatmap ────────────────────────────────────────────────────
+  async function renderHeatmap() {
+    const data = await fetchJSON('/api/dashboard/matrix');
+    const cats = ['overall','reasoning','coding','writing','math','instruction','multilingual','safety'];
+
+    document.getElementById('hm-header').innerHTML =
+      '<th>Model</th><th>Loc</th>' +
+      cats.map(c => `<th>${c.slice(0,5).toUpperCase()}</th>`).join('') +
+      '<th>tok/s</th><th>Cost</th>';
+
+    document.getElementById('hm-body').innerHTML = data.map(m => {
+      const costStr = m.cost ? `$${m.cost.output}` : 'FREE';
+      return `<tr style="cursor:pointer" onclick="window._showDetail('${m.id}')">
+        <td>${m.name}</td>
+        <td><span class="loc-badge ${m.location}">${m.location}</span></td>
+        ${cats.map(c => {
+          const s = m.scores[c] || 0;
+          return `<td><span class="hm-cell" style="background:${scoreBg(s)};color:${scoreColor(s)}">${s}</span></td>`;
+        }).join('')}
+        <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${m.tok_s}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${m.cost?'var(--orange)':'var(--green-neon)'}">${costStr}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Cost Comparison ────────────────────────────────────────────
+  async function renderCost() {
+    const data = await fetchJSON(`/api/dashboard/cost?tokens=${_currentTokens}`);
+    document.getElementById('cost-subtitle').textContent =
+      `for ${_currentTokens.toLocaleString()} output tokens`;
+
+    const maxCost = Math.max(...data.filter(d => d.cost_usd > 0).map(d => d.cost_usd), 0.001);
+
+    document.getElementById('cost-list').innerHTML = data.map(m => {
+      const pct = m.cost_usd === 0 ? 3 : Math.max(3, (m.cost_usd / maxCost) * 100);
+      return `<div class="cost-row" style="cursor:pointer" onclick="window._showDetail('${m.id}')">
+        <div class="cost-name">${m.name}</div>
+        <div class="cost-bar-wrap">
+          <div class="cost-bar ${costClass(m.cost_usd)}" style="width:${pct}%"></div>
+        </div>
+        <div class="cost-val" style="color:${m.cost_usd===0?'var(--green-neon)':'var(--text-primary)'}">${m.cost_display}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Speed Comparison ───────────────────────────────────────────
+  async function renderSpeed() {
+    const sorted = [..._benchmarks].sort((a,b) => (b.tok_s||0) - (a.tok_s||0));
+    const maxTok = sorted[0]?.tok_s || 1;
+
+    document.getElementById('speed-list').innerHTML = sorted.map(m => {
+      const pct = Math.max(3, ((m.tok_s || 0) / maxTok) * 100);
+      return `<div class="ranking-row" style="cursor:pointer" onclick="window._showDetail('${m.id}')">
+        <div class="rank-name">${m.name}</div>
+        <span class="loc-badge ${m.location}">${m.location}</span>
+        <div class="rank-bar-wrap">
+          <div class="rank-bar ${m.location}" style="width:${pct}%"></div>
+        </div>
+        <div class="rank-score">${m.tok_s}</div>
+        <div class="rank-meta">tok/s</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Detail Modal ───────────────────────────────────────────────
+  window._showDetail = async function(modelId) {
+    const m = await fetchJSON(`/api/dashboard/model/${encodeURIComponent(modelId)}`);
+    if (!m) return;
+    const cats = ['overall','reasoning','coding','writing','math','instruction','multilingual','safety'];
+    const costStr = m.cost
+      ? `$${m.cost.input}/M in — $${m.cost.output}/M out`
+      : 'FREE (local)';
+
+    document.getElementById('modal-body').innerHTML = `
+      <button class="modal-close" onclick="document.getElementById('detail-modal').classList.remove('show')">&times;</button>
+      <div class="modal-title">${m.name}</div>
+
+      <div class="modal-scores">
+        ${cats.map(c => `
+          <div class="modal-score-item">
+            <div class="cat">${c}</div>
+            <div class="val" style="color:${scoreColor(m.scores[c]||0)}">${m.scores[c]||0}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="modal-row"><span class="label">Location</span><span class="value"><span class="loc-badge ${m.location}">${m.location}</span></span></div>
+      <div class="modal-row"><span class="label">Provider</span><span class="value">${m.provider}</span></div>
+      ${m.architecture ? `<div class="modal-row"><span class="label">Architecture</span><span class="value">${m.architecture}</span></div>` : ''}
+      ${m.params_b ? `<div class="modal-row"><span class="label">Parameters</span><span class="value">${m.params_b}B</span></div>` : ''}
+      <div class="modal-row"><span class="label">Speed</span><span class="value">${m.tok_s} tok/s</span></div>
+      ${m.vram_gb ? `<div class="modal-row"><span class="label">VRAM</span><span class="value">${m.vram_gb} GB</span></div>` : ''}
+      <div class="modal-row"><span class="label">Cost</span><span class="value">${costStr}</span></div>
+      <div class="modal-row"><span class="label">Restrictions</span><span class="value">${m.restrictions}</span></div>
+      <div class="modal-row"><span class="label">Released</span><span class="value">${m.released || '—'}</span></div>
+      <div class="modal-row"><span class="label">Source</span><span class="value" style="font-size:11px">${m.source || '—'}</span></div>
+
+      <div style="margin-top:12px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">STRENGTHS</div>
+        <div class="modal-tags">
+          ${(m.strengths||[]).map(s => `<span class="rec-tag">${s.replace(/_/g,' ')}</span>`).join('')}
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">WEAKNESSES</div>
+        <div class="modal-tags">
+          ${(m.weaknesses||[]).map(s => `<span class="rec-tag" style="background:rgba(255,68,68,0.12);color:var(--error)">${s.replace(/_/g,' ')}</span>`).join('')}
+        </div>
+      </div>
+    `;
+    document.getElementById('detail-modal').classList.add('show');
+  };
+
+  // ── Multimodal Refresh ─────────────────────────────────────────
+  async function refreshMultimodal() {
+    await Promise.all([
+      renderMmRankings(),
+      renderMmHeatmap(),
+    ]);
+  }
+
+  // ── Multimodal Rankings ────────────────────────────────────────
+  async function renderMmRankings() {
+    let url = `/api/dashboard/multimodal/rankings?category=${_currentMmCategory}`;
+    if (_currentModality) url += `&modality=${_currentModality}`;
+    const data = await fetchJSON(url);
+
+    const label = _currentMmCategory.replace(/_/g,' ');
+    document.getElementById('mm-ranking-subtitle').textContent =
+      `by ${label}${_currentModality ? ' — ' + _currentModality.replace(/_/g,' ') : ''}`;
+
+    document.getElementById('mm-ranking-list').innerHTML = data.map((m, i) => {
+      const statusBadge = m.status === 'available'
+        ? '<span style="font-size:9px;color:var(--green)">● AVAIL</span>'
+        : m.status === 'planned'
+          ? '<span style="font-size:9px;color:var(--orange)">◐ PLANNED</span>'
+          : '<span style="font-size:9px;color:var(--blue)">☁ CLOUD</span>';
+      return `
+      <div class="ranking-row" style="cursor:pointer" onclick="window._showMmDetail('${m.id}')">
+        <div class="rank-num ${i===0?'top1':i===1?'top2':i===2?'top3':''}">${m.rank}</div>
+        <div class="rank-name">${m.name}</div>
+        <span class="loc-badge ${m.location}">${m.location}</span>
+        <div class="rank-bar-wrap">
+          <div class="rank-bar ${m.location}" style="width:${m.score}%"></div>
+        </div>
+        <div class="rank-score" style="color:${scoreColor(m.score)}">${m.score}</div>
+        <div class="rank-meta">${statusBadge}</div>
+      </div>`;
+    }).join('') || '<div style="color:var(--text-muted);padding:16px;text-align:center">No models in this category</div>';
+  }
+
+  // ── Multimodal Heatmap ─────────────────────────────────────────
+  async function renderMmHeatmap() {
+    let data = await fetchJSON('/api/dashboard/multimodal/matrix');
+    if (_currentModality) data = data.filter(m => m.modality === _currentModality);
+    const cats = ['quality','speed','controllability','consistency','versatility','cost_efficiency'];
+
+    document.getElementById('mm-hm-header').innerHTML =
+      '<th>Model</th><th>Type</th><th>Loc</th>' +
+      cats.map(c => `<th>${c.slice(0,5).toUpperCase()}</th>`).join('') +
+      '<th>Time</th><th>Status</th>';
+
+    document.getElementById('mm-hm-body').innerHTML = data.map(m => {
+      const modShort = m.modality.replace('text_to_','t→').replace('image_to_','i→').replace('speech_to_','s→').replace('voice_','v:');
+      return `<tr style="cursor:pointer" onclick="window._showMmDetail('${m.id}')">
+        <td>${m.name}</td>
+        <td style="font-size:10px;color:var(--text-muted)">${modShort}</td>
+        <td><span class="loc-badge ${m.location}">${m.location}</span></td>
+        ${cats.map(c => {
+          const s = m.scores[c] || 0;
+          return `<td><span class="hm-cell" style="background:${scoreBg(s)};color:${scoreColor(s)}">${s}</span></td>`;
+        }).join('')}
+        <td style="font-family:'JetBrains Mono',monospace;font-size:10px">${m.gen_time_s}s</td>
+        <td style="font-size:10px;color:${m.status==='available'?'var(--green)':m.status==='planned'?'var(--orange)':'var(--blue)'}">${m.status}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Alerts ─────────────────────────────────────────────────────
+  async function renderAlerts() {
+    let url = '/api/dashboard/alerts';
+    if (_currentModality) url += `?modality=${_currentModality}`;
+    const data = await fetchJSON(url);
+
+    document.getElementById('alerts-list').innerHTML = data.map(a => `
+      <div class="alert-card ${a.type}">
+        <div class="alert-header">
+          <div class="alert-model">${a.model}</div>
+          <span class="alert-type ${a.type}">${a.type} · ${a.confidence}</span>
+        </div>
+        <div class="alert-detail">${a.detail}</div>
+        <div class="alert-action">→ ${a.your_action}</div>
+        <div class="alert-source">Source: ${a.source} · Impact: ${a.impact} · Added: ${a.added}</div>
+      </div>
+    `).join('') || '<div style="color:var(--text-muted);padding:16px;text-align:center">No alerts for this modality</div>';
+  }
+
+  // ── Freshness Bar ──────────────────────────────────────────────
+  async function renderFreshness() {
+    const data = await fetchJSON('/api/dashboard/freshness');
+    const dotClass = data.stale_count === 0 ? 'fresh' : data.stale_count <= 3 ? 'aging' : 'stale';
+    const statusText = data.stale_count === 0
+      ? 'All data confirmed fresh'
+      : `${data.stale_count} of ${data.total_models} entries need refresh`;
+
+    document.getElementById('freshness-bar').innerHTML = `
+      <div class="freshness-dot ${dotClass}"></div>
+      <span>${statusText}</span>
+      <span style="color:var(--text-muted)">·</span>
+      <span>Last full sweep: <strong>${data.last_full_sweep}</strong></span>
+      <span style="color:var(--text-muted)">·</span>
+      <span>${data.total_models} multimodal models tracked</span>
+      <span style="color:var(--text-muted)">·</span>
+      <span>${data.alerts_count} active alerts</span>
+    `;
+  }
+
+  // ── Research Sweep Trigger ─────────────────────────────────────
+  async function runSweep() {
+    const btn = document.getElementById('sweep-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Sweeping…';
+    try {
+      const res = await fetch(API + '/api/dashboard/research/sweep', { method: 'POST' });
+      const data = await res.json();
+      const newCount = (data.new_discoveries || []).length;
+      btn.textContent = newCount > 0 ? `✅ ${newCount} new found` : '✅ Up to date';
+      renderFreshness();
+      renderStaging();  // Refresh staging panel after sweep
+      setTimeout(() => { btn.textContent = '🔍 Run Sweep'; btn.disabled = false; }, 4000);
+    } catch (e) {
+      btn.textContent = '❌ Sweep failed';
+      setTimeout(() => { btn.textContent = '🔍 Run Sweep'; btn.disabled = false; }, 3000);
+    }
+  }
+
+  // ── Staging Review Panel ────────────────────────────────────────
+  async function renderStaging() {
+    const statsEl = document.getElementById('staging-stats');
+    const listEl = document.getElementById('staging-list');
+    try {
+      const [stats, pending] = await Promise.all([
+        fetchJSON('/api/dashboard/staging/stats'),
+        fetchJSON('/api/dashboard/staging?status=pending&limit=20'),
+      ]);
+      // Stats badges
+      statsEl.innerHTML = `
+        <span class="stat"><b>${stats.pending || 0}</b> pending</span>
+        <span class="stat"><b>${stats.approved || 0}</b> approved</span>
+        <span class="stat"><b>${stats.rejected || 0}</b> rejected</span>
+        <span class="stat"><b>${stats.deferred || 0}</b> deferred</span>
+      `;
+      // Candidate cards
+      if (!pending || pending.length === 0) {
+        listEl.innerHTML = '<div class="staging-empty">No pending candidates. Run a sweep to discover new models.</div>';
+        return;
+      }
+      listEl.innerHTML = pending.map(c => {
+        const relClass = c.relevance_score >= 0.6 ? 'rel-high' : c.relevance_score >= 0.3 ? 'rel-med' : 'rel-low';
+        const relLabel = c.relevance_score >= 0.6 ? 'High' : c.relevance_score >= 0.3 ? 'Med' : 'Low';
+        const kw = (c.matched_keywords || []).slice(0, 4).join(', ');
+        return `<div class="staging-card" data-id="${c.id}">
+          <div class="sc-info">
+            <div class="sc-name">${esc(c.name)}</div>
+            <div class="sc-meta">
+              <span>📡 ${esc(c.source)}</span>
+              <span>🎯 ${esc(c.modality || 'unknown')}</span>
+              <span>👤 ${esc(c.provider || '?')}</span>
+              <span class="relevance-badge ${relClass}">${relLabel} (${(c.relevance_score||0).toFixed(2)})</span>
+              ${kw ? '<span>🔑 ' + esc(kw) + '</span>' : ''}
+            </div>
+            <div class="sc-summary">${esc(c.summary || '')}</div>
+          </div>
+          <div class="sc-actions">
+            <button class="btn-approve" onclick="stagingAction(${c.id},'approve')">✓ Approve</button>
+            <button class="btn-defer" onclick="stagingAction(${c.id},'defer')">⏸ Defer</button>
+            <button class="btn-reject" onclick="stagingAction(${c.id},'reject')">✗ Reject</button>
+          </div>
+        </div>`;
+      }).join('');
+    } catch (e) {
+      listEl.innerHTML = '<div class="staging-empty">Staging DB not yet populated. Run a sweep first.</div>';
+    }
+  }
+
+  // Helper: escape HTML
+  function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+  // Staging action: approve / reject / defer
+  window.stagingAction = async function(id, action) {
+    try {
+      const res = await fetch(API + `/api/dashboard/staging/${id}/${action}`, { method: 'POST' });
+      if (res.ok) renderStaging();
+    } catch (e) { console.error('Staging action failed:', e); }
+  };
+
+  // ── Multimodal Detail Modal ────────────────────────────────────
+  window._showMmDetail = async function(modelId) {
+    const m = await fetchJSON(`/api/dashboard/multimodal/model/${encodeURIComponent(modelId)}`);
+    if (!m) return;
+    const cats = ['quality','speed','controllability','consistency','versatility','cost_efficiency'];
+    let costStr = 'FREE (local)';
+    if (m.cost) {
+      const keys = Object.keys(m.cost);
+      costStr = keys.map(k => `${k}: $${m.cost[k]}`).join(' · ');
+    }
+
+    document.getElementById('modal-body').innerHTML = `
+      <button class="modal-close" onclick="document.getElementById('detail-modal').classList.remove('show')">&times;</button>
+      <div class="modal-title">${m.name}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin:-12px 0 12px">${m.modality.replace(/_/g,' ').toUpperCase()}</div>
+
+      <div class="modal-scores">
+        ${cats.map(c => `
+          <div class="modal-score-item">
+            <div class="cat">${c.replace(/_/g,' ')}</div>
+            <div class="val" style="color:${scoreColor(m.scores[c]||0)}">${m.scores[c]||0}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="modal-row"><span class="label">Location</span><span class="value"><span class="loc-badge ${m.location}">${m.location}</span></span></div>
+      <div class="modal-row"><span class="label">Provider</span><span class="value">${m.provider}</span></div>
+      ${m.architecture ? `<div class="modal-row"><span class="label">Architecture</span><span class="value">${m.architecture}</span></div>` : ''}
+      ${m.params_b ? `<div class="modal-row"><span class="label">Parameters</span><span class="value">${m.params_b}B</span></div>` : ''}
+      <div class="modal-row"><span class="label">Gen Time</span><span class="value">${m.gen_time_s}s</span></div>
+      ${m.vram_gb ? `<div class="modal-row"><span class="label">VRAM</span><span class="value">${m.vram_gb} GB</span></div>` : ''}
+      <div class="modal-row"><span class="label">Cost</span><span class="value">${costStr}</span></div>
+      <div class="modal-row"><span class="label">Resolution</span><span class="value">${m.resolution || '—'}</span></div>
+      <div class="modal-row"><span class="label">Status</span><span class="value" style="color:${m.status==='available'?'var(--green)':m.status==='planned'?'var(--orange)':'var(--blue)'}">${m.status}</span></div>
+      <div class="modal-row"><span class="label">Open Source</span><span class="value">${m.open_source ? '✓ Yes' : '✗ No'}</span></div>
+      <div class="modal-row"><span class="label">Released</span><span class="value">${m.released || '—'}</span></div>
+      <div class="modal-row"><span class="label">Data Source</span><span class="value" style="font-size:11px">${m.source || '—'}</span></div>
+      <div class="modal-row"><span class="label">Last Confirmed</span><span class="value">${m.last_confirmed}</span></div>
+
+      <div style="margin-top:12px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">STRENGTHS</div>
+        <div class="modal-tags">
+          ${(m.strengths||[]).map(s => `<span class="rec-tag">${s.replace(/_/g,' ')}</span>`).join('')}
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">WEAKNESSES</div>
+        <div class="modal-tags">
+          ${(m.weaknesses||[]).map(s => `<span class="rec-tag" style="background:rgba(255,68,68,0.12);color:var(--error)">${s.replace(/_/g,' ')}</span>`).join('')}
+        </div>
+      </div>
+    `;
+    document.getElementById('detail-modal').classList.add('show');
+  };
+
+  // ── Events ─────────────────────────────────────────────────────
+  function bindEvents() {
+    // Category select
+    document.getElementById('filter-category').addEventListener('change', e => {
+      _currentCategory = e.target.value;
+      refreshAll();
+    });
+
+    // Location pills
+    document.querySelectorAll('#loc-pills .pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('#loc-pills .pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        _currentLocation = pill.dataset.loc;
+        refreshAll();
+      });
+    });
+
+    // Budget
+    document.getElementById('filter-budget').addEventListener('change', e => {
+      _currentBudget = e.target.value;
+      refreshAll();
+    });
+
+    // Tokens
+    let tokenTimer;
+    document.getElementById('filter-tokens').addEventListener('input', e => {
+      clearTimeout(tokenTimer);
+      tokenTimer = setTimeout(() => {
+        _currentTokens = parseInt(e.target.value) || 1000;
+        renderCost();
+      }, 400);
+    });
+
+    // Modality pills
+    document.querySelectorAll('#modality-pills .mod-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('#modality-pills .mod-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        _currentModality = pill.dataset.mod;
+        refreshMultimodal();
+        renderAlerts();
+      });
+    });
+
+    // MM category
+    document.getElementById('mm-category').addEventListener('change', e => {
+      _currentMmCategory = e.target.value;
+      refreshMultimodal();
+    });
+
+    // Modal close on overlay click
+    document.getElementById('detail-modal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('show');
+    });
+
+    // ESC to close modal
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') document.getElementById('detail-modal').classList.remove('show');
+    });
+
+    // Sweep button
+    document.getElementById('sweep-btn').addEventListener('click', runSweep);
+
+    // Load staging panel
+    renderStaging();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

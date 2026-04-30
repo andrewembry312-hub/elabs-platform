@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>THE MACHINE — Project</title>
+  <link rel="stylesheet" href="css/machine.css">
+  <style>
+    /* Loading overlay */
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: var(--bg-deep);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+    #loadingOverlay .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border-light);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* File tree */
+    #fileTree {
+      max-height: 240px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      scrollbar-width: thin;
+      scrollbar-color: #1a1a2e transparent;
+    }
+
+    /* Project info */
+    #projectInfo {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    /* Swarm button */
+    .btn-swarm {
+      background: rgba(68, 221, 170, 0.1) !important;
+      border-color: #44ddaa44 !important;
+      color: #44ddaa !important;
+    }
+    .btn-swarm:hover {
+      background: rgba(68, 221, 170, 0.2) !important;
+      border-color: #44ddaa !important;
+    }
+
+    /* Log color classes (flat — used by ui.js) */
+    .log-cyan { color: var(--cyan); }
+    .log-green { color: var(--green-bright); }
+    .log-pink { color: var(--pink); }
+    .log-gold { color: var(--gold); }
+    .log-purple { color: var(--purple); }
+
+    /* ═══ IFRAME LAB NODES (hexagonal clip-path) ═══ */
+    #iframeLayer { position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:none }
+    .lab-iframe-wrap { position:absolute;pointer-events:none;transform:translate(-50%,-50%);transition:left .4s ease,top .4s ease }
+    .lab-iframe-border { position:absolute;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);opacity:.25;transition:opacity .5s }
+    .lab-iframe-wrap.active .lab-iframe-border { opacity:.65;animation:node-glow 2s ease-in-out infinite }
+    .lab-iframe-wrap.completed .lab-iframe-border { opacity:.45 }
+    .lab-iframe-clip { clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);overflow:hidden;position:relative }
+    .lab-iframe-clip iframe { border:none;pointer-events:none;transform-origin:0 0;display:block }
+    .lab-iframe-label {
+      text-align:center;font-size:9px;font-weight:600;letter-spacing:.5px;
+      margin-top:6px;opacity:.7;transition:opacity .3s;
+      max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+      padding:0 4px;
+    }
+    .lab-iframe-wrap.active .lab-iframe-label { opacity:1 }
+    @keyframes node-glow { 0%,100%{opacity:.55} 50%{opacity:.75} }
+    .log-orange { color: #ff8a65; }
+    .log-yellow { color: #ffd700; }
+
+    /* Node inspector */
+    #nodeInspectorContent .ni-label { color: #888; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; margin-top: 8px; }
+    #nodeInspectorContent .ni-value { color: #ccc; font-size: 12px; margin-bottom: 4px; }
+    #nodeInspectorContent .ni-result { 
+      background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 4px;
+      padding: 8px; font-size: 11px; color: #aaa; max-height: 200px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-word; margin-top: 4px;
+      scrollbar-width: thin; scrollbar-color: #1a1a2e transparent;
+    }
+    #nodeInspectorContent .ni-actions { display: flex; gap: 4px; margin-top: 8px; }
+    #nodeInspectorContent .ni-actions button { font-size: 10px; padding: 3px 8px; }
+    .ni-dep-tag { display:inline-block;background:rgba(96,165,250,.15);color:#60A5FA;font-size:9px;padding:1px 6px;border-radius:3px;margin:1px 2px; }
+    .ni-status { display:inline-block;padding:1px 8px;border-radius:3px;font-size:10px;font-weight:600; }
+    .ni-status.pending { background:rgba(136,136,136,.2);color:#888; }
+    .ni-status.running { background:rgba(0,212,255,.2);color:#00d4ff; }
+    .ni-status.complete { background:rgba(105,240,174,.2);color:#69f0ae; }
+    .ni-status.error { background:rgba(255,82,82,.2);color:#ff5252; }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div style="color:var(--cyan);font-size:14px;font-weight:500">Loading THE MACHINE...</div>
+</div>
+
+<!-- Main layout -->
+<div class="layout">
+
+  <!-- ═══ LEFT SIDEBAR — Node Steps ═══ -->
+  <div class="sidebar-left">
+    <h2>⚡ Nodes</h2>
+    <div class="step-list" id="stepSidebar"></div>
+
+    <!-- File Tree (linked directory) -->
+    <div style="border-top:1px solid var(--border);padding:10px 8px">
+      <h2 style="padding:4px 8px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)">📁 Files</h2>
+      <div id="linkedDirPath" style="font-size:9px;color:#60A5FA;padding:2px 4px;margin-bottom:4px;word-break:break-all;background:rgba(96,165,250,0.08);border-radius:3px;display:none"></div>
+      <div id="fileTree" style="color:var(--text-secondary);font-size:10px;padding:0 4px">No linked directory</div>
+
+      <h2 style="padding:10px 8px 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted)">File Preview</h2>
+      <div id="filePreviewPath" style="font-size:9px;color:#93c5fd;padding:2px 4px;margin-bottom:4px;word-break:break-all;background:rgba(147,197,253,0.08);border-radius:3px">No file selected</div>
+      <pre id="filePreviewBody" style="margin:0;color:#d1d5db;font-size:10px;line-height:1.4;max-height:180px;overflow:auto;padding:6px 8px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;background:rgba(10,14,26,0.7)">Click a file in the tree to preview its contents.</pre>
+    </div>
+  </div>
+
+  <!-- ═══ CENTER — Canvas ═══ -->
+  <div class="canvas-area">
+    <!-- Top bar -->
+    <div class="top-bar">
+      <h1>⚡ THE MACHINE</h1>
+      <span class="tag">NODE GRAPH</span>
+      <div class="spacer"></div>
+      <span class="stat">Step <strong id="stepNum">—</strong></span>
+      <span class="stat">Phase <strong id="phaseName">—</strong></span>
+      <span class="stat">Agents <strong id="agentCount">0</strong></span>
+      <span class="stat" id="playbackStatus" style="color:#888">Idle</span>
+      <span class="stat" style="color:var(--cyan);font-family:'JetBrains Mono',monospace" id="timer-display">00:00</span>
+      <span id="backendHealthDot" title="Backend status" style="display:inline-flex;align-items:center;gap:5px;font-size:10px;padding:3px 8px;border:1px solid rgba(239,68,68,0.3);border-radius:4px;cursor:default;transition:border-color 0.3s">
+        <span id="backendDot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 4px #ef4444;flex-shrink:0;transition:all 0.3s"></span>
+        <span id="backendLabel" style="color:#ef4444;transition:color 0.3s">Backend</span>
+      </span>
+      <span id="openclawDot" title="OpenClaw: gray = external cloud gateway not configured (normal). Local openclaw_node_executor is active and works without the gateway. Click to configure." style="display:inline-flex;align-items:center;gap:5px;font-size:10px;padding:3px 8px;border:1px solid rgba(107,114,128,0.25);border-radius:4px;cursor:pointer;transition:border-color 0.3s" onclick="document.getElementById('settingsModal').classList.add('open')">
+        <span class="oc-dot" style="width:8px;height:8px;border-radius:50%;background:#6b7280;flex-shrink:0;transition:all 0.3s"></span>
+        <span class="oc-label" style="color:#6b7280;transition:color 0.3s">OpenClaw</span>
+      </span>
+      <button class="top-icon-btn" id="topLoopBtn" title="Open Loop Terminal">🖥</button>
+      <button class="top-icon-btn" id="topSettingsBtn" title="Swarm Settings">⚙️</button>
+      <button class="top-icon-btn" id="topDebugBtn" title="Download Debug Log">📋</button>
+      <button class="top-icon-btn" id="topHelpBtn" title="Help">📖</button>
+    </div>
+
+    <!-- Canvas stack -->
+    <div class="main-view">
+      <canvas id="bgCanvas"></canvas>
+      <canvas id="fgCanvas"></canvas>
+      <!-- Node tooltip overlay -->
+      <div id="nodeTooltip" style="display:none;position:absolute;pointer-events:none;z-index:100;
+        background:rgba(8,12,24,0.95);border:1px solid rgba(0,212,255,0.35);border-radius:6px;
+        padding:8px 12px;max-width:320px;font-family:'JetBrains Mono',monospace;font-size:11px;
+        color:#e0e0e0;box-shadow:0 4px 20px rgba(0,0,0,0.6);backdrop-filter:blur(8px)"></div>
+    </div>
+
+    <!-- Bottom bar — execution controls -->
+    <div class="bottom-bar">
+      <button class="btn" id="resetBtn" title="Reset canvas visuals to initial state">↺ Reset</button>
+      <button class="btn btn-swarm" id="dagBtn" title="Execute workflow with dependency awareness">🔀 DAG Run</button>
+      <div class="spacer"></div>
+      <span id="execMode" style="font-size:10px;color:#888;letter-spacing:.5px"></span>
+    </div>
+  </div>
+
+  <!-- ═══ RIGHT PANEL ═══ -->
+  <div class="panel-right">
+
+    <!-- Project Info -->
+    <div class="panel-section">
+      <h3>Project</h3>
+      <div id="projectInfo">Loading...</div>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <button class="btn btn-secondary" id="btnBrowseProject" title="Open project directory in file explorer" style="font-size:10px;padding:3px 8px;flex:1">📂 Browse Files</button>
+        <button class="btn btn-secondary" id="btnOpenWebUI" title="Open in WebUI chat" style="font-size:10px;padding:3px 8px;flex:1">💬 Open in WebUI</button>
+      </div>
+      <div style="margin-top:4px">
+        <button class="btn btn-secondary" id="btnSaveWorkflow" title="Save this project as a reusable workflow template" style="font-size:10px;padding:3px 8px;width:100%;background:rgba(118,185,0,0.12);border-color:rgba(118,185,0,0.4);color:#76b900">💾 Save as Workflow</button>
+      </div>
+    </div>
+
+    <!-- Execution controls -->
+    <div class="panel-section">
+      <h3>Execution</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <button class="btn btn-secondary" id="btnStop" title="Stop execution">⏹ Stop</button>
+        <button class="btn btn-secondary" id="btnStatus" title="Check status">◈ Status</button>
+      </div>
+    </div>
+
+    <!-- Node Inspector (shows on node click) -->
+    <div class="panel-section" id="nodeInspector" style="display:none">
+      <h3>🔍 Node Inspector</h3>
+      <div id="nodeInspectorContent" style="font-size:11px"></div>
+    </div>
+
+    <!-- Agent Selection -->
+    <div class="panel-section">
+      <h3>⚙️ Agent Config</h3>
+      <div style="font-size:10px;color:#888;margin-bottom:8px">Select agents for new nodes:</div>
+      <div id="agentSelectionCheckboxes" style="display:flex;flex-direction:column;gap:4px"></div>
+    </div>
+
+    <!-- System RAM Monitor -->
+    <div class="panel-section">
+      <h3>System RAM</h3>
+      <div class="info-row">
+        <span class="label">Used</span>
+        <span class="value" id="ramUsed">0.0 GB</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Total</span>
+        <span class="value" id="ramTotal">0.0 GB</span>
+      </div>
+      <div class="vram-outer">
+        <div class="vram-inner" id="ramBar" style="width:0%;background:linear-gradient(90deg,#60a5fa,#a78bfa)"></div>
+        <div class="vram-text" id="ramText">0%</div>
+      </div>
+    </div>
+
+    <!-- GPU VRAM Monitor -->
+    <div class="panel-section">
+      <h3>GPU VRAM</h3>
+      <div class="info-row">
+        <span class="label">Used</span>
+        <span class="value" id="vramUsed">0.0 GB</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Total</span>
+        <span class="value" id="vramTotal">12.0 GB</span>
+      </div>
+      <div class="vram-outer">
+        <div class="vram-inner" id="vramBar" style="width:0%"></div>
+        <div class="vram-text" id="vramText">0%</div>
+      </div>
+      <div id="loadingQueue" style="display:none;margin-top:6px"></div>
+    </div>
+
+    <!-- Progress Metrics -->
+    <div class="panel-section">
+      <h3>Progress</h3>
+      <div class="metric-row">
+        <span>Workflow</span>
+        <strong id="workflowPercent">0%</strong>
+      </div>
+      <div class="bar-container">
+        <div class="bar-fill green" id="workflowBar" style="width:0%"></div>
+      </div>
+      <div class="metric-row">
+        <span>Current Step</span>
+        <strong id="stepPercent">—</strong>
+      </div>
+      <div class="bar-container">
+        <div class="bar-fill cyan" id="stepBar" style="width:0%"></div>
+      </div>
+    </div>
+
+
+
+    <!-- Agent Cards -->
+    <div class="panel-section">
+      <h3>Agents</h3>
+      <div id="agentCardList"></div>
+    </div>
+
+    <!-- Add Node -->
+    <div class="panel-section">
+      <h3>+ Add Node</h3>
+      <input type="text" id="addNodeTask" placeholder="Task description..."
+        style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-primary);padding:4px 8px;font-size:11px;border-radius:4px;margin-bottom:4px">
+      <div style="display:flex;gap:4px">
+        <select id="addNodeMuscle" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text-primary);font-size:10px;padding:2px 4px;border-radius:4px">
+          <option value="">Loading OpenClaw agents...</option>
+        </select>
+        <button class="btn btn-secondary" id="btnAddNode" style="font-size:10px;padding:2px 8px">Add</button>
+      </div>
+    </div>
+
+    <!-- Execution Summary -->
+    <div class="panel-section" id="execSummarySection" style="display:none">
+      <h3>📊 Execution Summary</h3>
+      <div id="execSummary" style="font-size:10px"></div>
+    </div>
+
+    <!-- Log -->
+    <div class="panel-section">
+      <h3>Log</h3>
+      <div class="log-area" id="logArea"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Node Context Menu -->
+<div id="nodeContextMenu" style="display:none;position:fixed;z-index:9999;background:#1a1a2e;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:4px 0;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.6);font-size:12px;color:#e0e0e0">
+  <div class="ctx-item" data-action="inspect" style="padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:8px">🔍 Inspect Node</div>
+  <div class="ctx-item" data-action="reveal" style="padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:8px">📂 Reveal in File Explorer</div>
+  <div class="ctx-item" data-action="copy-result" style="padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:8px">📋 Copy Result</div>
+  <div style="border-top:1px solid rgba(255,255,255,0.1);margin:4px 0"></div>
+  <div class="ctx-item" data-action="run" style="padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:8px">▶ Run Node</div>
+  <div class="ctx-item" data-action="reset" style="padding:6px 14px;cursor:pointer;display:flex;align-items:center;gap:8px">↺ Reset Node</div>
+</div>
+
+<style>
+  .ctx-item:hover { background: rgba(96,165,250,0.15); color: #87CEEB; }
+
+  /* ═══ CORE CHAT PANEL (draggable + resizable) ═══ */
+  #coreChatModal {
+    display:none; position:fixed; z-index:2000;
+    top:60px; right:20px; width:480px; height:520px;
+    min-width:320px; min-height:280px;
+    background:#0a0a1a; border:1px solid rgba(0,212,255,0.25);
+    border-radius:12px; box-shadow:0 0 40px rgba(0,212,255,0.15);
+    flex-direction:column; overflow:hidden;
+    resize:both;
+  }
+  #coreChatModal.open { display:flex; }
+  .chat-header {
+    padding:8px 12px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:8px;
+    cursor:grab; user-select:none; flex-shrink:0;
+  }
+  .chat-header:active { cursor:grabbing; }
+  .chat-header h3 { margin:0; font-size:13px; color:var(--cyan); flex:1; }
+  .chat-tabs {
+    display:flex; gap:0; border-bottom:1px solid var(--border); flex-shrink:0;
+  }
+  .chat-tab {
+    flex:1; padding:6px 0; text-align:center; font-size:11px;
+    color:#666; cursor:pointer; border:none; background:none;
+    border-bottom:2px solid transparent; transition:all 0.2s;
+  }
+  .chat-tab:hover { color:#aaa; }
+  .chat-tab.active { color:var(--cyan); border-bottom-color:var(--cyan); }
+  .chat-tab-content { display:none; flex:1; flex-direction:column; overflow:hidden; }
+  .chat-tab-content.active { display:flex; }
+  .chat-messages {
+    flex:1; overflow-y:auto; padding:10px 12px;
+    display:flex; flex-direction:column; gap:6px;
+    scrollbar-width:thin; scrollbar-color:#1a1a2e transparent;
+  }
+  .chat-msg { max-width:90%; padding:6px 10px; border-radius:8px; font-size:11px; line-height:1.4; word-break:break-word; white-space:pre-wrap; }
+  .chat-msg.user { align-self:flex-end; background:rgba(96,165,250,0.15); color:#c0d8ff; border:1px solid rgba(96,165,250,0.2); }
+  .chat-msg.assistant { align-self:flex-start; background:rgba(0,212,255,0.08); color:#c8e8f0; border:1px solid rgba(0,212,255,0.12); }
+  .chat-msg.system { align-self:center; color:#888; font-size:10px; font-style:italic; }
+  .chat-msg.agent { align-self:flex-start; background:rgba(105,240,174,0.08); color:#a8e6cf; border:1px solid rgba(105,240,174,0.12); font-size:10px; }
+  .chat-msg.agent .agent-label { color:#69f0ae; font-weight:600; font-size:10px; margin-bottom:2px; }
+  .chat-msg.terminal { align-self:flex-start; background:rgba(255,183,77,0.08); color:#ffe0b2; border:1px solid rgba(255,183,77,0.12); font-family:monospace; font-size:10px; }
+  .chat-msg.terminal .term-label { color:#ffb74d; font-weight:600; font-size:10px; margin-bottom:2px; }
+  /* Confirmation bar for new project creation */
+  .chat-confirm-bar { display:flex; gap:8px; padding:6px 12px; border-top:1px solid rgba(255,183,77,0.3); background:rgba(255,183,77,0.05); }
+  .chat-confirm-bar .confirm-yes-btn { flex:1; padding:6px 10px; background:rgba(105,240,174,0.15); border:1px solid rgba(105,240,174,0.4); color:#69f0ae; border-radius:6px; cursor:pointer; font-size:11px; }
+  .chat-confirm-bar .confirm-yes-btn:hover { background:rgba(105,240,174,0.3); }
+  .chat-confirm-bar .confirm-no-btn { flex:1; padding:6px 10px; background:rgba(255,80,80,0.1); border:1px solid rgba(255,80,80,0.3); color:#ff8080; border-radius:6px; cursor:pointer; font-size:11px; }
+  .chat-confirm-bar .confirm-no-btn:hover { background:rgba(255,80,80,0.2); }
+  .chat-input-row { padding:8px 12px; border-top:1px solid var(--border); display:flex; gap:6px; flex-shrink:0; }
+  .chat-input-row input {
+    flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--border);
+    color:var(--text-primary); padding:6px 10px; font-size:11px; border-radius:6px; outline:none;
+  }
+  .chat-input-row input:focus { border-color:var(--cyan); }
+  .chat-input-row button { padding:6px 12px; background:rgba(0,212,255,0.15); border:1px solid rgba(0,212,255,0.3); color:var(--cyan); border-radius:6px; cursor:pointer; font-size:11px; }
+  .chat-input-row button:hover { background:rgba(0,212,255,0.25); }
+  .chat-input-row button:disabled { opacity:0.4; cursor:default; }
+  .chat-typing { color:#888; font-size:10px; padding:3px 12px; min-height:16px; flex-shrink:0; }
+  #streamMessages { padding:8px; font-size:10px; }
+  .stream-auto-scroll { scroll-behavior:smooth; }
+
+  /* ═══ SETTINGS MODAL ═══ */
+  #settingsModal {
+    display:none; position:fixed; inset:0; z-index:2000;
+    background:rgba(0,0,0,0.7); backdrop-filter:blur(6px);
+    align-items:center; justify-content:center;
+  }
+  #settingsModal.open { display:flex; }
+  .settings-container {
+    width:min(760px,92vw); height:min(640px,82vh);
+    background:#0a0a1a; border:1px solid rgba(105,240,174,0.2);
+    border-radius:12px; display:flex; flex-direction:column;
+    box-shadow:0 0 40px rgba(105,240,174,0.08);
+  }
+  .settings-container .chat-header { border-color:rgba(105,240,174,0.15); }
+  .settings-container .chat-header h3 { color:var(--green-bright,#69f0ae); }
+  .settings-body {
+    flex:1; overflow-y:auto; padding:16px 20px;
+    scrollbar-width:thin; scrollbar-color:#1a1a2e transparent;
+  }
+  .settings-group { margin-bottom:18px; }
+  .settings-group h4 { font-size:12px; color:var(--cyan); margin:0 0 8px; text-transform:uppercase; letter-spacing:0.5px; }
+  .settings-row {
+    display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; margin-bottom:6px;
+    font-size:11px; align-items:center;
+  }
+  .settings-row label { color:#999; }
+  .settings-row input, .settings-row select {
+    background:rgba(255,255,255,0.05); border:1px solid var(--border);
+    color:var(--text-primary); padding:4px 8px; font-size:11px; border-radius:4px;
+  }
+  .settings-row select option {
+    background:#1a1a2e; color:#e0e0e0;
+  }
+  .settings-row input:focus, .settings-row select:focus { border-color:var(--cyan); outline:none; }
+  .settings-footer {
+    padding:10px 16px; border-top:1px solid var(--border);
+    display:flex; gap:8px; justify-content:flex-end;
+  }
+  .settings-footer button { padding:6px 16px; border-radius:6px; cursor:pointer; font-size:11px; border:1px solid var(--border); }
+  .settings-footer .btn-save { background:rgba(105,240,174,0.15); border-color:rgba(105,240,174,0.3); color:#69f0ae; }
+  .settings-footer .btn-save:hover { background:rgba(105,240,174,0.25); }
+  .settings-footer .btn-reset { background:rgba(255,82,82,0.1); border-color:rgba(255,82,82,0.2); color:#ff5252; }
+  .settings-footer .btn-cancel { background:rgba(255,255,255,0.05); color:#aaa; }
+
+  /* ═══ TOP-BAR ICON BUTTONS ═══ */
+  .top-icon-btn {
+    background:none; border:1px solid var(--border); color:#888;
+    padding:4px 10px; border-radius:4px; cursor:pointer; font-size:13px;
+    transition:all 0.2s;
+  }
+  .top-icon-btn:hover { border-color:var(--cyan); color:var(--cyan); background:rgba(0,212,255,0.08); }
+</style>
+
+<!-- ═══ CORE CHAT MODAL ═══ -->
+<div id="coreChatModal">
+  <div class="chat-header" id="chatDragHandle">
+    <span style="font-size:16px">🧠</span>
+    <h3>Project Chat</h3>
+    <button class="top-icon-btn" id="chatMinBtn" title="Minimize" style="font-size:11px">─</button>
+    <button class="top-icon-btn" id="chatCloseBtn" title="Close">✕</button>
+  </div>
+  <div class="chat-tabs">
+    <button class="chat-tab active" data-tab="chat">💬 Chat</button>
+    <button class="chat-tab" data-tab="stream">📡 Stream</button>
+    <button class="chat-tab" data-tab="loop">🖥 Loop</button>
+  </div>
+  <!-- Chat tab -->
+  <div class="chat-tab-content active" id="tabChat" data-tab="chat">
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-msg system">Double-click the core or click 💬 to open chat.</div>
+    </div>
+    <div class="chat-typing" id="chatTyping"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Ask about this project..." autocomplete="off">
+      <button id="chatSendBtn">Send</button>
+    </div>
+  </div>
+  <!-- Stream tab -->
+  <div class="chat-tab-content" id="tabStream" data-tab="stream">
+    <div class="chat-messages stream-auto-scroll" id="streamMessages">
+      <div class="chat-msg system">Agent and terminal events will appear here in real-time.</div>
+    </div>
+  </div>
+  <!-- Execution Log tab (shows project node activity) -->
+  <div class="chat-tab-content" id="tabLoop" data-tab="loop">
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--border);flex-shrink:0;background:rgba(0,0,0,0.2)">
+      <span id="loopStatusBadge" style="font-size:10px;padding:2px 8px;border-radius:3px;background:rgba(96,165,250,0.15);color:#60a5fa">📋 Execution Log</span>
+      <span id="loopCycleBadge" style="font-size:10px;color:#666"></span>
+      <div style="flex:1"></div>
+      <button id="loopStopBtn" style="font-size:10px;padding:3px 10px;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);color:#60a5fa;border-radius:4px;cursor:pointer" title="Refresh execution log" onclick="_refreshExecLog()">↻ Refresh</button>
+    </div>
+    <div class="chat-messages stream-auto-scroll" id="loopLogMessages" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#ccc;flex:1"></div>
+  </div>
+</div>
+
+<!-- ═══ SETTINGS MODAL ═══ -->
+<div id="settingsModal">
+  <div class="settings-container">
+    <div class="chat-header">
+      <span style="font-size:18px">⚙️</span>
+      <h3>Swarm Pipeline Settings</h3>
+      <button class="top-icon-btn" id="settingsCloseBtn" title="Close">✕</button>
+    </div>
+    <div class="settings-body" id="settingsBody">
+      <div style="color:#888;font-size:12px;padding:20px;text-align:center">Loading settings...</div>
+    </div>
+    <div class="settings-footer">
+      <button class="btn-reset" id="settingsResetBtn">Reset Defaults</button>
+      <button class="btn-cancel" id="settingsCancelBtn">Cancel</button>
+      <button class="btn-save" id="settingsSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ OPENCLAW SETTINGS MODAL ═══ -->
+<div id="openclawSettingsSection" style="display:none">
+  <!-- Injected into settingsBody by JS below -->
+</div>
+
+<script>
+// ── Inject OpenClaw section into settings modal ───────────────────
+(function () {
+  'use strict';
+
+  function _loadOcSettings() {
+    return {
+      enabled:    localStorage.getItem('oc_enabled')    !== 'false',
+      gateway:    localStorage.getItem('oc_gateway')    || 'http://127.0.0.1:18789',
+      token:      localStorage.getItem('oc_token')      || '',
+      mode:       localStorage.getItem('oc_mode')       || 'hybrid_bridge',
+    };
+  }
+
+  function _saveOcSettings(s) {
+    localStorage.setItem('oc_enabled', String(s.enabled));
+    localStorage.setItem('oc_gateway', s.gateway);
+    localStorage.setItem('oc_token',   s.token);
+    localStorage.setItem('oc_mode',    s.mode);
+    // Expose to window so openclaw-client.mjs picks them up on next connect
+    window.OPENCLAW_ENABLED = s.enabled;
+    window.OPENCLAW_GATEWAY = s.gateway;
+    window.OPENCLAW_TOKEN   = s.token;
+  }
+
+  function _buildOcSection() {
+    const s = _loadOcSettings();
+    return `
+      <div class="settings-group" id="ocSettingsGroup" style="border-top:1px solid rgba(0,212,255,0.15);padding-top:14px;margin-top:4px">
+        <h4 style="color:#00d4ff">🔗 OpenClaw Integration</h4>
+        <div class="settings-row">
+          <label for="ocEnabled">Enable Integration</label>
+          <select id="ocEnabled">
+            <option value="true"  ${s.enabled  ? 'selected' : ''}>Enabled</option>
+            <option value="false" ${!s.enabled ? 'selected' : ''}>Disabled</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label for="ocGateway">Gateway URL</label>
+          <input id="ocGateway" type="text" value="${s.gateway}" placeholder="http://127.0.0.1:18789">
+        </div>
+        <div class="settings-row">
+          <label for="ocToken">Auth Token</label>
+          <input id="ocToken" type="password" value="${s.token}" placeholder="WS token (optional)">
+        </div>
+        <div class="settings-row">
+          <label for="ocMode">Integration Mode</label>
+          <select id="ocMode">
+            <option value="hybrid_bridge"    ${s.mode === 'hybrid_bridge'    ? 'selected' : ''}>Hybrid Bridge</option>
+            <option value="openclaw_primary" ${s.mode === 'openclaw_primary' ? 'selected' : ''}>OpenClaw Primary</option>
+            <option value="mirror_only"      ${s.mode === 'mirror_only'      ? 'selected' : ''}>Mirror Only</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label>Detected Models</label>
+          <select id="ocModelsSelect" style="font-size:10px"><option value="">— connect to detect —</option></select>
+        </div>
+        <div class="settings-row">
+          <label>System Info</label>
+          <span id="ocSystemInfo" style="font-size:10px;color:#888;word-break:break-all">—</span>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:6px">
+          <button id="ocTestBtn" style="font-size:10px;padding:3px 10px;background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.3);color:#00d4ff;border-radius:4px;cursor:pointer">🔗 Test Connection</button>
+          <span id="ocTestResult" style="font-size:10px;color:#888;align-self:center"></span>
+        </div>
+      </div>`;
+  }
+
+  var _origSettingsOpen = null;
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var settingsBtn = document.getElementById('topSettingsBtn');
+    var settingsModal = document.getElementById('settingsModal');
+    var settingsBody  = document.getElementById('settingsBody');
+    var saveBtn       = document.getElementById('settingsSaveBtn');
+
+    if (!settingsModal || !settingsBody) return;
+
+    function _injectIfNeeded() {
+      if (settingsBody.children.length > 0 && !settingsBody.querySelector('#ocSettingsGroup')) {
+        settingsBody.insertAdjacentHTML('beforeend', _buildOcSection());
+        _wireOcTest();
+      }
+    }
+
+    // Observe when settingsBody is rebuilt by ui.js (re-inject after every rebuild)
+    var observer = new MutationObserver(_injectIfNeeded);
+    observer.observe(settingsBody, { childList: true, subtree: false });
+
+    // Inject immediately if body already has content
+    _injectIfNeeded();
+
+    // Initial DAG button label
+    if (typeof window._ocUpdateDagButton === 'function') window._ocUpdateDagButton();
+
+    // Intercept save button to also persist OC settings
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function () {
+        var enabled = document.getElementById('ocEnabled');
+        var gateway = document.getElementById('ocGateway');
+        var token   = document.getElementById('ocToken');
+        var mode    = document.getElementById('ocMode');
+        if (enabled && gateway) {
+          _saveOcSettings({
+            enabled: enabled.value === 'true',
+            gateway: gateway.value.trim() || 'http://127.0.0.1:18789',
+            token:   token ? token.value.trim() : '',
+            mode:    mode ? mode.value : 'hybrid_bridge',
+          });
+          window.OPENCLAW_MODE = mode ? mode.value : 'hybrid_bridge';
+          if (typeof window._ocUpdateDagButton === 'function') window._ocUpdateDagButton();
+        }
+      }, true);  // capture phase — runs before ui.js save handler
+    }
+  });
+
+  function _wireOcTest() {
+    var testBtn    = document.getElementById('ocTestBtn');
+    var testResult = document.getElementById('ocTestResult');
+    if (!testBtn) return;
+    testBtn.addEventListener('click', async function () {
+      var gateway = (document.getElementById('ocGateway')?.value || 'http://127.0.0.1:18789').trim();
+      testResult.textContent = '⏳ Testing…';
+      try {
+        var resp = await fetch(gateway + '/', { signal: AbortSignal.timeout(4000) });
+        if (resp.ok || resp.status === 404) {
+          testResult.style.color = '#4ade80';
+          testResult.textContent = '✓ Gateway reachable';
+        } else {
+          testResult.style.color = '#fbbf24';
+          testResult.textContent = `⚠ HTTP ${resp.status}`;
+        }
+      } catch (e) {
+        testResult.style.color = '#ff5252';
+        testResult.textContent = '✗ ' + (e.message || 'unreachable');
+      }
+    });
+  }
+
+  // Bootstrap window.OPENCLAW_* from localStorage on page load
+  (function () {
+    var s = _loadOcSettings();
+    window.OPENCLAW_ENABLED = s.enabled;
+    window.OPENCLAW_GATEWAY = s.gateway;
+    window.OPENCLAW_TOKEN   = s.token;
+    window.OPENCLAW_MODE    = s.mode || 'hybrid_bridge';
+    window.OPENCLAW_CONFIG_READY = fetch('/api/openclaw/config')
+      .then(function (resp) { return resp.ok ? resp.json() : null; })
+      .then(function (cfg) {
+        if (!cfg) return;
+        window.OPENCLAW_ENABLED = cfg.enabled !== false;
+        window.OPENCLAW_GATEWAY = cfg.gateway || window.OPENCLAW_GATEWAY;
+        window.OPENCLAW_TOKEN   = cfg.token || window.OPENCLAW_TOKEN;
+        window.OC_DEFAULT_AGENT_ID = cfg.default_agent || window.OC_DEFAULT_AGENT_ID;
+      })
+      .catch(function () {});
+  })();
+
+  // Update DAG button context based on OC connection state + mode
+  window._ocUpdateDagButton = function () {
+    var btn = document.getElementById('dagBtn');
+    var modeEl = document.getElementById('execMode');
+    if (!btn) return;
+    var ocState = (typeof window._ocClientState === 'function') ? window._ocClientState() : null;
+    // Try to read state from import-side if exposed
+    var mode = window.OPENCLAW_MODE || 'hybrid_bridge';
+    var connected = (window.OC_CONNECTED === true);
+    if (mode === 'openclaw_primary' && connected) {
+      btn.textContent = '⚡ Run via OpenClaw';
+      btn.style.borderColor = 'rgba(74,222,128,0.5)';
+      btn.style.color = '#4ade80';
+      if (modeEl) modeEl.textContent = 'Mode: OPENCLAW PRIMARY';
+    } else if (mode === 'openclaw_primary') {
+      btn.textContent = '⚡ Run via OpenClaw';
+      btn.style.borderColor = 'rgba(251,191,36,0.5)';
+      btn.style.color = '#fbbf24';
+      if (modeEl) modeEl.textContent = 'Mode: OPENCLAW (offline)';
+    } else {
+      btn.textContent = '🔀 DAG Run';
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      if (modeEl) modeEl.textContent = 'Mode: ' + mode.toUpperCase().replace('_', ' ');
+    }
+  };
+})();
+</script>
+<div id="jsErrorPanel" style="position:fixed;top:8px;right:8px;max-width:420px;max-height:260px;overflow-y:auto;z-index:9999;font:11px monospace;background:rgba(20,0,0,0.92);border:1px solid #f44;color:#ff8;padding:6px 10px;border-radius:6px;display:none;pointer-events:auto;">
+  <div style="color:#f66;font-weight:bold;margin-bottom:4px;">JS Errors <button onclick="this.parentElement.parentElement.style.display='none'" style="float:right;background:none;border:none;color:#f66;cursor:pointer;font-size:13px;">✕</button></div>
+  <div id="jsErrorList"></div>
+</div>
+<script>
+(function(){
+  var panel = document.getElementById('jsErrorPanel');
+  var list = document.getElementById('jsErrorList');
+  var count = 0;
+  function addErr(msg) {
+    if (count > 30) return;
+    count++;
+    panel.style.display = 'block';
+    var d = document.createElement('div');
+    d.style.borderBottom = '1px solid #333';
+    d.style.padding = '2px 0';
+    d.style.wordBreak = 'break-all';
+    d.textContent = msg;
+    list.appendChild(d);
+  }
+  window.addEventListener('error', function(e) {
+    addErr('[ERR] ' + e.message + ' @ ' + (e.filename||'').split('/').pop() + ':' + e.lineno);
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    addErr('[REJECT] ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)));
+  });
+  // Intercept console.error
+  var origErr = console.error;
+  console.error = function() {
+    origErr.apply(console, arguments);
+    addErr('[console.error] ' + Array.from(arguments).map(String).join(' '));
+  };
+})();
+</script>
+<script type="module" src="js/main.js?v=20260427b"></script>
+<script>
+// ── Backend health + Execution Log polling ───────────────────────────────────
+(function () {
+  'use strict';
+  let _backendTimer = null;
+  let _loopLogTimer = null;
+  // Resolve project_id from URL for exec log polling
+  const _currentProjectId = new URLSearchParams(window.location.search).get('project_id');
+
+  function _colorForLine(l) {
+    if (/Grade A|grade=A/.test(l))  return '#4ade80';
+    if (/ERROR|grade=[CD]/.test(l)) return '#ff5252';
+    if (/CYCLE|cycle \d/i.test(l))  return '#00d4ff';
+    if (/BACKEND/i.test(l))         return '#ffb74d';
+    return '#bbb';
+  }
+
+  // ── OpenClaw local indicator helper ──────────────────────────────────────
+  function _setOcLocalStatus(healthy) {
+    const wrap  = document.getElementById('openclawDot');
+    const dot   = wrap && wrap.querySelector('.oc-dot');
+    const lbl   = wrap && wrap.querySelector('.oc-label');
+    if (!dot || !lbl) return;
+    if (healthy) {
+      dot.style.background  = '#4ade80';
+      dot.style.boxShadow   = '0 0 6px #4ade80';
+      lbl.style.color       = '#4ade80';
+      lbl.textContent       = 'Local ✓';
+      if (wrap) wrap.style.borderColor = 'rgba(74,222,128,0.35)';
+      if (wrap) wrap.title = 'OpenClaw local executor: active and healthy. External gateway not required for local execution.';
+    } else {
+      dot.style.background  = '#6b7280';
+      dot.style.boxShadow   = '';
+      lbl.style.color       = '#6b7280';
+      lbl.textContent       = 'OpenClaw';
+      if (wrap) wrap.style.borderColor = 'rgba(107,114,128,0.25)';
+      if (wrap) wrap.title = 'OpenClaw: backend unreachable. Local executor may be offline.';
+    }
+  }
+
+  async function _pollBackend() {
+    const dot       = document.getElementById('backendDot');
+    const label     = document.getElementById('backendLabel');
+    const healthWrap= document.getElementById('backendHealthDot');
+    const badge     = document.getElementById('loopStatusBadge');
+    const cycBadge  = document.getElementById('loopCycleBadge');
+    try {
+      const r = await fetch('/api/loop/status', { signal: AbortSignal.timeout(5000) });
+      if (r.ok) {
+        const d = await r.json();
+        dot.style.background   = '#4ade80';
+        dot.style.boxShadow    = '0 0 6px #4ade80';
+        label.style.color      = '#4ade80';
+        label.textContent      = 'Backend';
+        healthWrap.style.borderColor = 'rgba(74,222,128,0.35)';
+        // Backend healthy → local OpenClaw executor is available
+        _setOcLocalStatus(true);
+        if (badge) {
+          if (d.stop_pending) {
+            badge.style.background = 'rgba(251,191,36,0.18)';
+            badge.style.color      = '#fbbf24';
+            badge.textContent      = '\u23F8 Stopping\u2026';
+          } else {
+            badge.style.background = 'rgba(74,222,128,0.15)';
+            badge.style.color      = '#4ade80';
+            badge.textContent      = '\u25CF Running';
+          }
+        }
+        if (cycBadge) {
+          cycBadge.textContent = d.last_cycle
+            ? 'Cycle ' + d.last_cycle + '  \u00B7  Grade ' + d.last_grade
+            : '';
+        }
+      }
+    } catch (_) {
+      dot.style.background   = '#ef4444';
+      dot.style.boxShadow    = '0 0 4px #ef4444';
+      label.style.color      = '#ef4444';
+      label.textContent      = 'Backend \u2715';
+      healthWrap.style.borderColor = 'rgba(239,68,68,0.35)';
+      _setOcLocalStatus(false);
+      if (badge) { badge.style.background='rgba(136,136,136,0.2)'; badge.style.color='#888'; badge.textContent='\u25CF Offline'; }
+      if (cycBadge) cycBadge.textContent = '';
+    }
+    _backendTimer = setTimeout(_pollBackend, 4000);
+  }
+
+  // ── Execution Log tab: shows project node status pulled from manifest ──
+  let _execLogTimer = null;
+  let _execLogLastHash = '';
+  // Hung detection: track last time a node transitioned
+  let _lastProgressHash = '';
+  let _lastProgressAt   = Date.now();
+  // Completion intent: track if we already showed the completion panel
+  let _completionIntentShown = false;
+
+  function _formatNodeLogEntry(node) {
+    const statusColors = { complete:'#4ade80', done:'#4ade80', running:'#60a5fa', error:'#f87171', pending:'#888', ready:'#888' };
+    const statusIcons  = { complete:'✔', done:'✔', running:'▶', error:'✖', pending:'○', ready:'○' };
+    const st  = node.status || 'pending';
+    const col = statusColors[st] || '#aaa';
+    const ico = statusIcons[st]  || '·';
+    const tier = node.tier === 'reasoning' ? ' [reasoning]' : '';
+    const model = node.model_used ? ` · ${node.model_used}` : '';
+    let timing = '';
+    if (node.started_at && node.completed_at) {
+      const secs = ((new Date(node.completed_at) - new Date(node.started_at)) / 1000).toFixed(1);
+      timing = ` · ${secs}s`;
+    } else if (node.started_at && st === 'running') {
+      const secs = ((Date.now() - new Date(node.started_at)) / 1000).toFixed(0);
+      timing = ` · ${secs}s elapsed`;
+    }
+    const tokens = node.tokens_used ? ` · ${node.tokens_used} tok` : '';
+    const label = (node.label || node.task || '').substring(0, 60);
+    return `<div style="padding:2px 6px;border-left:2px solid ${col};margin:1px 0;color:${col}">` +
+      `${ico} [${node.task_id||'t'+node.id}] ${label}${tier}${model}${timing}${tokens}` +
+      `</div>`;
+  }
+
+  function _showCompletionIntent(manifest) {
+    // Only show once per project completion
+    if (_completionIntentShown) return;
+    _completionIntentShown = true;
+    const container = document.getElementById('loopLogMessages');
+    if (!container) return;
+    const nodes = manifest.nodes || [];
+    const totalToks = nodes.reduce((s,n) => s + (n.tokens_used||0), 0);
+    const totalSecs = nodes.reduce((s,n) => {
+      if (n.started_at && n.completed_at)
+        return s + (new Date(n.completed_at) - new Date(n.started_at)) / 1000;
+      return s;
+    }, 0);
+    const models = [...new Set(nodes.map(n => n.model_used).filter(Boolean))].join(', ');
+    // Build a next-step suggestion based on node labels
+    const labels = nodes.map(n => (n.label||n.task||'').toLowerCase());
+    const hasHtml = labels.some(l => /html/.test(l));
+    const hasCss  = labels.some(l => /css/.test(l));
+    const hasJs   = labels.some(l => /javascript|js/.test(l));
+    let nextSuggestion = 'Review generated artifacts in the file tree.';
+    let nextAction = '';
+    if (hasHtml && hasCss && hasJs) {
+      nextSuggestion = 'Combine HTML/CSS/JS into a single runnable preview file.';
+      nextAction = `<button onclick="_runNextStep('combine')" style="margin:4px 2px;padding:4px 12px;background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.4);color:#4ade80;border-radius:4px;cursor:pointer;font-size:11px">▶ Combine &amp; Preview</button>`;
+    } else if (labels.some(l => /python|py/.test(l))) {
+      nextSuggestion = 'Run validation or tests on the generated Python files.';
+      nextAction = `<button onclick="_runNextStep('validate')" style="margin:4px 2px;padding:4px 12px;background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.4);color:#4ade80;border-radius:4px;cursor:pointer;font-size:11px">▶ Validate Output</button>`;
+    }
+    const panel = document.createElement('div');
+    panel.id = 'completionIntentPanel';
+    panel.style.cssText = 'margin:8px 0;padding:10px 12px;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.3);border-radius:6px;font-size:11px';
+    panel.innerHTML = `
+      <div style="color:#4ade80;font-weight:bold;margin-bottom:6px">✔ All nodes complete</div>
+      <div style="color:#aaa;margin-bottom:4px">
+        ${nodes.length} nodes · ${totalSecs.toFixed(0)}s · ${totalToks.toLocaleString()} tokens · ${models}
+      </div>
+      <div style="color:#ccc;margin-bottom:8px">Next: ${nextSuggestion}</div>
+      <div>
+        ${nextAction}
+        <button onclick="_runNextStep('continue')" style="margin:4px 2px;padding:4px 12px;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.35);color:#60a5fa;border-radius:4px;cursor:pointer;font-size:11px">+ Add more nodes</button>
+        <button onclick="document.getElementById('completionIntentPanel').style.display='none'" style="margin:4px 2px;padding:4px 12px;background:rgba(107,114,128,0.1);border:1px solid rgba(107,114,128,0.3);color:#9ca3af;border-radius:4px;cursor:pointer;font-size:11px">✕ Dismiss</button>
+      </div>`;
+    container.insertBefore(panel, container.firstChild);
+  }
+
+  window._runNextStep = async function(action) {
+    if (action === 'combine') {
+      // Post to chat asking to combine the outputs
+      const chatInput = document.getElementById('chatInput');
+      const chatSend  = document.getElementById('chatSend');
+      const modal     = document.getElementById('coreChatModal');
+      if (modal) modal.classList.add('open');
+      const chatTab = document.querySelector('.chat-tab[data-tab="chat"]');
+      if (chatTab) chatTab.click();
+      if (chatInput) {
+        chatInput.value = 'Combine the HTML, CSS, and JavaScript node outputs into a single runnable index.html file with inline styles and scripts.';
+        if (chatSend) chatSend.click();
+      }
+    } else if (action === 'continue') {
+      const chatInput = document.getElementById('chatInput');
+      const modal     = document.getElementById('coreChatModal');
+      if (modal) modal.classList.add('open');
+      const chatTab = document.querySelector('.chat-tab[data-tab="chat"]');
+      if (chatTab) chatTab.click();
+      if (chatInput) chatInput.focus();
+    } else if (action === 'validate') {
+      const chatInput = document.getElementById('chatInput');
+      const modal     = document.getElementById('coreChatModal');
+      if (modal) modal.classList.add('open');
+      const chatTab = document.querySelector('.chat-tab[data-tab="chat"]');
+      if (chatTab) chatTab.click();
+      if (chatInput) {
+        chatInput.value = 'Review the generated Python files and run basic validation to check for syntax errors or obvious bugs.';
+        const chatSend = document.getElementById('chatSend');
+        if (chatSend) chatSend.click();
+      }
+    }
+  };
+
+  async function _refreshExecLog() {
+    const container = document.getElementById('loopLogMessages');
+    const badge = document.getElementById('loopStatusBadge');
+    const cycBadge = document.getElementById('loopCycleBadge');
+    if (!container || !_currentProjectId) {
+      if (container) container.innerHTML = '<div style="color:#888;padding:8px">No project loaded.</div>';
+      return;
+    }
+    try {
+      const r = await fetch(`/api/machine/projects/${_currentProjectId}`, { signal: AbortSignal.timeout(5000) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const manifest = await r.json();
+      const nodes = manifest.nodes || [];
+
+      // Progress hash = statuses of all nodes (changes when any node transitions)
+      const progressHash = nodes.map(n => n.id + ':' + n.status).join('|');
+      if (progressHash !== _lastProgressHash) {
+        _lastProgressHash = progressHash;
+        _lastProgressAt   = Date.now();
+      }
+
+      const fullHash = nodes.map(n => n.status + (n.tokens_used||0) + (n.completed_at||'')).join('|');
+      if (fullHash === _execLogLastHash) return;
+      _execLogLastHash = fullHash;
+
+      const done   = nodes.filter(n => n.status === 'complete' || n.status === 'done').length;
+      const total  = nodes.length;
+      const status = manifest.status || 'unknown';
+      const statusCol = { running:'#60a5fa', swarming:'#a78bfa', complete:'#4ade80', error:'#f87171', ready:'#888', paused:'#fbbf24' }[status] || '#aaa';
+
+      // Hung detection: running for >90s with no node transitions
+      const staleSecs = (Date.now() - _lastProgressAt) / 1000;
+      const isHung    = (status === 'running' || status === 'swarming') && staleSecs > 90;
+
+      if (badge) {
+        if (isHung) {
+          badge.style.background = 'rgba(251,191,36,0.18)';
+          badge.style.color      = '#fbbf24';
+          badge.textContent      = `⚠ Possibly hung — ${done}/${total} nodes (${Math.round(staleSecs)}s no progress)`;
+        } else {
+          badge.style.background = `rgba(${status==='running'?'96,165,250':'74,222,128'},0.12)`;
+          badge.style.color      = statusCol;
+          badge.textContent      = `📋 ${status} — ${done}/${total} nodes`;
+        }
+      }
+      if (cycBadge) {
+        const totalToks = nodes.reduce((s,n) => s + (n.tokens_used||0), 0);
+        cycBadge.textContent = totalToks ? `${totalToks.toLocaleString()} tokens` : '';
+      }
+      const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 40;
+      // Keep completion intent panel if already rendered
+      const existingPanel = document.getElementById('completionIntentPanel');
+      container.innerHTML = `<div style="color:#666;padding:4px 8px;font-size:9px;border-bottom:1px solid #222;margin-bottom:4px">` +
+        `Project: ${manifest.project_id}  ·  ${status}  ·  ${new Date(manifest.created_at||Date.now()).toLocaleString()}</div>` +
+        (isHung ? `<div style="padding:6px 8px;background:rgba(251,191,36,0.1);border-left:2px solid #fbbf24;color:#fbbf24;margin-bottom:4px;font-size:11px">` +
+          `⚠ Workflow appears stalled — no node progress for ${Math.round(staleSecs)}s. ` +
+          `Check Ollama logs or click ↻ Refresh to re-poll.</div>` : '') +
+        nodes.map(_formatNodeLogEntry).join('');
+      if (existingPanel && existingPanel.style.display !== 'none') {
+        container.insertBefore(existingPanel, container.firstChild);
+      }
+      if (wasAtBottom) container.scrollTop = container.scrollHeight;
+
+      // Show completion intent panel when all nodes finish
+      if (status === 'complete' || (done > 0 && done === total)) {
+        _showCompletionIntent(manifest);
+      }
+      // Reset hung tracking + completion panel on next project run
+      if (status === 'ready' || status === 'pending') {
+        _lastProgressAt = Date.now();
+        _completionIntentShown = false;
+      }
+    } catch (e) {
+      if (container) container.innerHTML = `<div style="color:#888;padding:8px">Could not load execution log: ${e.message}</div>`;
+    }
+  }
+
+  async function _pollLoopLog() {
+    await _refreshExecLog();
+    _loopLogTimer = setTimeout(_pollLoopLog, 3000);
+  }
+
+  window._refreshExecLog = _refreshExecLog;
+
+  function _openLoopTab() {
+    const modal = document.getElementById('coreChatModal');
+    if (modal) modal.classList.add('open');
+    // Use the tab button click so main.js setupCoreChat handles class toggling
+    const loopTabBtn = document.querySelector('.chat-tab[data-tab="loop"]');
+    if (loopTabBtn) loopTabBtn.click();
+    if (_loopLogTimer === null) _pollLoopLog();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // Kick off backend health poll immediately
+    _pollBackend();
+
+    // Loop button in top bar
+    var loopBtn = document.getElementById('topLoopBtn');
+    if (loopBtn) loopBtn.addEventListener('click', _openLoopTab);
+
+    // Start exec log poll when loop tab is clicked
+    var loopTabBtn2 = document.querySelector('.chat-tab[data-tab="loop"]');
+    if (loopTabBtn2) {
+      loopTabBtn2.addEventListener('click', function () {
+        if (_loopLogTimer === null) _pollLoopLog();
+      });
+    }
+  });
+}());
+</script>
+</body>
+</html>

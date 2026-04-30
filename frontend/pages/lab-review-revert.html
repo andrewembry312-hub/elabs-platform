@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE MACHINE — Review & Revert Lab</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#060610;display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// ═══════════════════════════════════════════════════
+//  REVIEW & REVERT LAB — Code Review & Comparison
+//  Hero: Holographic diff display (before/after split)
+// ═══════════════════════════════════════════════════
+
+const cv=document.getElementById('c'),X=cv.getContext('2d');
+let W,H,T=0;
+function resize(){const d=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*d;cv.height=H*d;cv.style.width=W+'px';cv.style.height=H+'px';X.setTransform(d,0,0,d,0,0)}
+addEventListener('resize',resize);resize();
+const COS30=Math.cos(Math.PI/6),SIN30=.5;let SC,OX,OY;
+function iso(x,y,z){return[OX+(x-y)*COS30*SC,OY+(x+y)*SIN30*SC-z*SC]}
+const RW=140,RD=140,RH=95;
+const C={floorDark:'#0c1218',floorLight:'#121a24',wallBack:'#0a1018',wallLeft:'#080e14',trim:'#1a2a3e',trimDim:'#10182a',metal:'#0e1620',metalLt:'#1a2838',metalHi:'#2a3a50',cyan:'#00ccff',cyanBright:'#44eeff',cyanDim:'#006688',green:'#22ff66',greenDim:'#118833',amber:'#ffaa22',purple:'#aa66ff',purpleDim:'#553388',pink:'#ff44aa',yellow:'#ffdd44',red:'#ff4444',orange:'#ff8844',screenBg:'#020810',screenBdr:'#0a5580'};
+const RAINBOW=[C.cyan,C.green,C.amber,C.purple,C.pink,C.yellow,C.orange,'#44ddaa','#6688ff',C.red];
+
+function poly(pts,fill,stroke,lw){X.beginPath();const[sx,sy]=iso(...pts[0]);X.moveTo(sx,sy);for(let i=1;i<pts.length;i++){const[px,py]=iso(...pts[i]);X.lineTo(px,py)}X.closePath();if(fill){X.fillStyle=fill;X.fill()}if(stroke){X.strokeStyle=stroke;X.lineWidth=lw||1;X.stroke()}}
+function box(x,y,z,w,d,h,cT,cL,cR,str){poly([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]],cT,str,.5);poly([[x,y+d,z],[x,y+d,z+h],[x+w,y+d,z+h],[x+w,y+d,z]],cL,str,.5);poly([[x+w,y,z],[x+w,y,z+h],[x+w,y+d,z+h],[x+w,y+d,z]],cR,str,.5)}
+function glow(wx,wy,wz,r,color,a){const[cx,cy]=iso(wx,wy,wz);const rad=r*SC;const g=X.createRadialGradient(cx,cy,0,cx,cy,rad);g.addColorStop(0,color+(a||'22'));g.addColorStop(1,'transparent');X.fillStyle=g;X.fillRect(cx-rad,cy-rad,rad*2,rad*2)}
+
+function drawFloor(){const ts=10;for(let gx=0;gx<RW;gx+=ts)for(let gy=0;gy<RD;gy+=ts){const ch=((gx/ts+gy/ts)%2===0);poly([[gx,gy,0],[gx+ts,gy,0],[gx+ts,gy+ts,0],[gx,gy+ts,0]],ch?C.floorLight:C.floorDark,'#0e182844',.3)}}
+function drawWalls(){poly([[0,0,0],[RW,0,0],[RW,0,RH],[0,0,RH]],C.wallBack);poly([[0,0,0],[0,RD,0],[0,RD,RH],[0,0,RH]],C.wallLeft);for(let wx=8;wx<RW;wx+=12){const[x1,y1]=iso(wx,.2,2),[x2,y2]=iso(wx,.2,RH-2);X.beginPath();X.moveTo(x1,y1);X.lineTo(x2,y2);X.strokeStyle=C.trim+'18';X.lineWidth=.4;X.stroke()}for(let wz=10;wz<RH;wz+=15){const[x1,y1]=iso(2,.2,wz),[x2,y2]=iso(RW-2,.2,wz);X.beginPath();X.moveTo(x1,y1);X.lineTo(x2,y2);X.strokeStyle=C.trim+'12';X.lineWidth=.3;X.stroke()}for(let wy=8;wy<RD;wy+=14){const[x1,y1]=iso(.2,wy,2),[x2,y2]=iso(.2,wy,RH-2);X.beginPath();X.moveTo(x1,y1);X.lineTo(x2,y2);X.strokeStyle=C.trim+'14';X.lineWidth=.3;X.stroke()}const[c1x,c1y]=iso(0,0,RH),[c2x,c2y]=iso(RW,0,RH),[c3x,c3y]=iso(0,RD,RH);X.beginPath();X.moveTo(c3x,c3y);X.lineTo(c1x,c1y);X.lineTo(c2x,c2y);X.strokeStyle=C.trim+'60';X.lineWidth=1.5;X.stroke()}
+
+function wallScreen(face,pos,dim,content){const{x,z}=pos,{w,h}=dim;let pts;if(face==='back')pts=[[x,.8,z],[x+w,.8,z],[x+w,.8,z+h],[x,.8,z+h]];else pts=[[.8,x,z],[.8,x+w,z],[.8,x+w,z+h],[.8,x,z+h]];poly(pts,C.screenBg,C.screenBdr+'55',.8);for(let sl=1;sl<h;sl+=1.5){let p1,p2;if(face==='back'){p1=iso(x+.5,.6,z+sl);p2=iso(x+w-.5,.6,z+sl)}else{p1=iso(.6,x+.5,z+sl);p2=iso(.6,x+w-.5,z+sl)}X.beginPath();X.moveTo(p1[0],p1[1]);X.lineTo(p2[0],p2[1]);X.strokeStyle=C.amber+'06';X.lineWidth=.4;X.stroke()}
+if(content==='bars'){const numBars=Math.floor(w/2.5),barW=(w-3)/numBars;for(let b=0;b<numBars;b++){const val=Math.sin(T*.002+b*.6)*.3+.65,bh=val*(h-4),bx=x+1.5+b*barW,bz=z+2,col=RAINBOW[b%RAINBOW.length];let p;if(face==='back')p=[[bx,.5,bz],[bx+barW*.75,.5,bz],[bx+barW*.75,.5,bz+bh],[bx,.5,bz+bh]];else p=[[.5,bx,bz],[.5,bx+barW*.75,bz],[.5,bx+barW*.75,bz+bh],[.5,bx,bz+bh]];poly(p,col+'99')}}
+else if(content==='line'){[C.amber,C.red,C.green].forEach((col,ci)=>{X.beginPath();for(let p=0;p<20;p++){const px=x+1.5+(w-3)*(p/19),val=Math.sin(T*.003*(ci+1)+p*.5+ci*2)*.3+.5,pz=z+2+val*(h-4),pt=face==='back'?iso(px,.4,pz):iso(.4,px,pz);p===0?X.moveTo(pt[0],pt[1]):X.lineTo(pt[0],pt[1])}X.strokeStyle=col+'cc';X.lineWidth=1.2;X.shadowColor=col;X.shadowBlur=6;X.stroke();X.shadowBlur=0})}
+else if(content==='diff'){const mid=w/2;for(let r=0;r<Math.floor(h/2.5);r++){const rz=z+1.5+r*2.5;const changed=Math.sin(T*.0008+r*2.3)>.3;
+// Left side (old)
+const rw1=(Math.sin(T*.001+r)*.2+.5)*(mid-3);let p1,p2;if(face==='back'){p1=iso(x+1.5,.4,rz);p2=iso(x+1.5+rw1,.4,rz)}else{p1=iso(.4,x+1.5,rz);p2=iso(.4,x+1.5+rw1,rz)}X.beginPath();X.moveTo(p1[0],p1[1]);X.lineTo(p2[0],p2[1]);X.strokeStyle=(changed?C.red:C.amber)+'55';X.lineWidth=1.5;X.stroke();
+// Right side (new)
+const rw2=(Math.sin(T*.001+r*1.3+1)*.2+.5)*(mid-3);if(face==='back'){p1=iso(x+mid+1,.4,rz);p2=iso(x+mid+1+rw2,.4,rz)}else{p1=iso(.4,x+mid+1,rz);p2=iso(.4,x+mid+1+rw2,rz)}X.beginPath();X.moveTo(p1[0],p1[1]);X.lineTo(p2[0],p2[1]);X.strokeStyle=(changed?C.green:C.amber)+'55';X.lineWidth=1.5;X.stroke()}
+// Divider line
+let d1,d2;if(face==='back'){d1=iso(x+mid,.3,z+1);d2=iso(x+mid,.3,z+h-1)}else{d1=iso(.3,x+mid,z+1);d2=iso(.3,x+mid,z+h-1)}X.beginPath();X.moveTo(d1[0],d1[1]);X.lineTo(d2[0],d2[1]);X.strokeStyle=C.amber+'44';X.lineWidth=1;X.stroke()}
+else if(content==='code'){for(let r=0;r<Math.floor(h/2.5);r++){const rz=z+1.5+r*2.5,rw=(Math.sin(T*.001+r*1.1)*.25+.55)*(w-3),col=r%3===0?C.amber:r%3===1?C.green:C.red;let p1,p2;if(face==='back'){p1=iso(x+1.5,.4,rz);p2=iso(x+1.5+rw,.4,rz)}else{p1=iso(.4,x+1.5,rz);p2=iso(.4,x+1.5+rw,rz)}X.beginPath();X.moveTo(p1[0],p1[1]);X.lineTo(p2[0],p2[1]);X.strokeStyle=col+'55';X.lineWidth=1.5;X.stroke()}}
+pts.forEach(p=>{const[px,py]=iso(...p);X.beginPath();X.arc(px,py,1.5,0,Math.PI*2);X.fillStyle=C.screenBdr+'88';X.fill()})}
+
+function serverRack(rx,ry,rw,rd,rh){box(rx,ry,0,rw,rd,rh,C.metalLt,C.metal,C.metal+'dd',C.trim+'33');const unitH=rh/7;for(let u=0;u<7;u++){const uz=1+u*unitH;poly([[rx+rw,ry,uz+.5],[rx+rw,ry+rd,uz+.5],[rx+rw,ry+rd,uz+unitH-.5],[rx+rw,ry,uz+unitH-.5]],'#060c14',C.trim+'22',.3);for(let l=0;l<4;l++){const ly=ry+2+l*(rd-4)/3,[lx,lly]=iso(rx+rw+.3,ly,uz+unitH/2),phase=Math.sin(T*.005+u*.9+l*1.4),lc=phase>.2?C.amber:phase>-.3?C.green:C.red;X.beginPath();X.arc(lx,lly,1*SC,0,Math.PI*2);X.fillStyle=lc;X.shadowColor=lc;X.shadowBlur=4;X.fill();X.shadowBlur=0}}}
+function desk(dx,dy,dw,dd){const dh=16;box(dx,dy,0,dw,dd,dh,C.metalLt+'cc',C.metal,C.metal+'bb',C.trim+'22');box(dx+1,dy+1,0,1.5,1.5,dh-1,C.metal,C.metal,C.metal);box(dx+dw-2.5,dy+1,0,1.5,1.5,dh-1,C.metal,C.metal,C.metal);const mw=dw*.7,mh=14,md=2,mx=dx+(dw-mw)/2,my=dy+2;box(mx+mw/2-1.5,my+dd*.3,dh,3,3,4,C.metal,C.metal,C.metal);box(mx,my+1,dh+4,mw,md,mh,C.metal,C.screenBg,'#011520',C.screenBdr+'44');for(let b=0;b<5;b++){const bh=(Math.sin(T*.003+b*1.1+dx)*.25+.6)*mh*.6,bx=mx+1.5+b*(mw-3)/5,col=RAINBOW[b%RAINBOW.length];poly([[bx,my+md+1,dh+5],[bx+2,my+md+1,dh+5],[bx+2,my+md+1,dh+5+bh],[bx,my+md+1,dh+5+bh]],col+'88')}}
+function chair(cx,cy){box(cx,cy,0,6,6,2,C.metal,C.metal,C.metal);box(cx+2.5,cy+2.5,2,1.5,1.5,10,C.metal,C.metal,C.metal);box(cx-1,cy-1,12,8,8,2,C.metalLt,'#0c1520','#0c1520');box(cx,cy-1,14,1.5,8,10,C.metalLt+'88','#0a1018','#0a1018')}
+function smallBox(sx,sy,sw,sd,sh,col){box(sx,sy,0,sw,sd,sh,col+'aa',col+'77',col+'88',C.trim+'22')}
+function crate(sx,sy){smallBox(sx,sy,8,8,6,C.metal);const[tx,ty]=iso(sx+4,sy+4,6.5);X.beginPath();X.arc(tx,ty,2*SC,0,Math.PI*2);X.fillStyle=C.trimDim;X.fill()}
+
+// ─── HERO: Holographic Diff Display ────────────────────
+function drawDiffDisplay(bx, by) {
+  // Base stand
+  box(bx-20, by-10, 0, 40, 20, 8, C.metalLt, C.metal, C.metal+'cc', C.trim+'44');
+
+  const float = Math.sin(T*.0018)*2;
+  const panelZ = 15 + float;
+  const panelW = 50, panelH = 45, panelD = 2;
+  const px0 = bx - panelW/2, py0 = by - panelD/2;
+
+  // Glow below
+  glow(bx, by, 0, 55, C.amber, '15');
+
+  // Projection beam
+  X.save(); X.globalAlpha = .06;
+  const bBot=iso(bx, by, 8), bTop=iso(bx, by, panelZ+panelH+5);
+  const beamG = X.createLinearGradient(bBot[0], bBot[1], bTop[0], bTop[1]);
+  beamG.addColorStop(0, C.amber);beamG.addColorStop(1,'transparent');
+  X.beginPath();X.moveTo(bBot[0]-12*SC,bBot[1]);X.lineTo(bTop[0]-18*SC,bTop[1]);X.lineTo(bTop[0]+18*SC,bTop[1]);X.lineTo(bBot[0]+12*SC,bBot[1]);X.closePath();X.fillStyle=beamG;X.fill();
+  X.restore();
+
+  // Left panel (old code — red tint)
+  const lx0 = px0, lx1 = px0+panelW/2-1;
+  X.globalAlpha = 0.15;
+  poly([[lx0,py0,panelZ],[lx1,py0,panelZ],[lx1,py0,panelZ+panelH],[lx0,py0,panelZ+panelH]], C.red+'22', C.red+'33', .8);
+  X.globalAlpha = 1;
+  // Code lines (old)
+  for(let r=0;r<14;r++){
+    const rz = panelZ + 2 + r*3;
+    const rw = (Math.sin(T*.001+r*1.2)*.2+.5)*(panelW/2-4);
+    const deleted = Math.sin(T*.0008+r*3)>.4;
+    const [p1x,p1y]=iso(lx0+1,.3,rz), [p2x,p2y]=iso(lx0+1+rw,.3,rz);
+    X.beginPath();X.moveTo(p1x,p1y);X.lineTo(p2x,p2y);
+    X.strokeStyle = deleted ? C.red+'77' : C.amber+'44';
+    X.lineWidth = 1.5; X.stroke();
+    if(deleted){
+      X.beginPath();X.moveTo(p1x,p1y);X.lineTo(p2x,p2y);
+      X.strokeStyle=C.red+'22';X.lineWidth=3;X.stroke();
+    }
+  }
+
+  // Right panel (new code — green tint)
+  const rx0 = px0+panelW/2+1, rx1 = px0+panelW;
+  X.globalAlpha = 0.15;
+  poly([[rx0,py0,panelZ],[rx1,py0,panelZ],[rx1,py0,panelZ+panelH],[rx0,py0,panelZ+panelH]], C.green+'22', C.green+'33', .8);
+  X.globalAlpha = 1;
+  for(let r=0;r<14;r++){
+    const rz = panelZ + 2 + r*3;
+    const rw = (Math.sin(T*.001+r*1.5+.5)*.2+.5)*(panelW/2-4);
+    const added = Math.sin(T*.0008+r*3)>.4;
+    const [p1x,p1y]=iso(rx0+1,.3,rz), [p2x,p2y]=iso(rx0+1+rw,.3,rz);
+    X.beginPath();X.moveTo(p1x,p1y);X.lineTo(p2x,p2y);
+    X.strokeStyle = added ? C.green+'77' : C.amber+'44';
+    X.lineWidth = 1.5; X.stroke();
+  }
+
+  // Center divider
+  const [d1x,d1y]=iso(bx,.2,panelZ), [d2x,d2y]=iso(bx,.2,panelZ+panelH);
+  X.beginPath();X.moveTo(d1x,d1y);X.lineTo(d2x,d2y);
+  X.strokeStyle=C.amber+'66';X.lineWidth=1.5;X.shadowColor=C.amber;X.shadowBlur=5;X.stroke();X.shadowBlur=0;
+
+  // Approval/reject indicators floating above
+  const [ax,ay]=iso(bx-12, by, panelZ+panelH+8+float);
+  const [bx2,by2]=iso(bx+12, by, panelZ+panelH+8+float);
+  // Approve (green check)
+  const apPulse = Math.sin(T*.003)*.3+.7;
+  X.globalAlpha=apPulse;
+  X.beginPath();X.arc(ax,ay,6*SC,0,Math.PI*2);X.fillStyle=C.green+'33';X.shadowColor=C.green;X.shadowBlur=6;X.fill();
+  X.beginPath();X.moveTo(ax-3*SC,ay);X.lineTo(ax-1*SC,ay+2*SC);X.lineTo(ax+4*SC,ay-3*SC);X.strokeStyle=C.green;X.lineWidth=2;X.stroke();X.shadowBlur=0;
+  // Reject (red X)
+  X.beginPath();X.arc(bx2,by2,6*SC,0,Math.PI*2);X.fillStyle=C.red+'22';X.shadowColor=C.red;X.shadowBlur=6;X.fill();
+  X.beginPath();X.moveTo(bx2-3*SC,by2-3*SC);X.lineTo(bx2+3*SC,by2+3*SC);X.strokeStyle=C.red+'88';X.lineWidth=2;X.stroke();
+  X.beginPath();X.moveTo(bx2+3*SC,by2-3*SC);X.lineTo(bx2-3*SC,by2+3*SC);X.stroke();X.shadowBlur=0;
+  X.globalAlpha=1;
+
+  // Version arrows on sides
+  for(let a=0;a<4;a++){
+    const az=panelZ + 8 + a*10;
+    const [lax,lay]=iso(px0-4, by, az+float);
+    X.beginPath();X.moveTo(lax,lay-3*SC);X.lineTo(lax-3*SC,lay);X.lineTo(lax,lay+3*SC);
+    X.strokeStyle=C.red+'55';X.lineWidth=1;X.stroke();
+    const [rax,ray]=iso(px0+panelW+4, by, az+float);
+    X.beginPath();X.moveTo(rax,ray-3*SC);X.lineTo(rax+3*SC,ray);X.lineTo(rax,ray+3*SC);
+    X.strokeStyle=C.green+'55';X.lineWidth=1;X.stroke();
+  }
+}
+
+function drawCeilingLights(){[{x:30,y:30},{x:80,y:25},{x:35,y:80},{x:85,y:80}].forEach(l=>{const[top]=[iso(l.x,l.y,RH)],[bot]=[iso(l.x,l.y,0)];const cg=X.createLinearGradient(top[0],top[1],bot[0],bot[1]);cg.addColorStop(0,'#332200'+'12');cg.addColorStop(.6,'#332200'+'04');cg.addColorStop(1,'transparent');X.save();X.globalAlpha=.3+Math.sin(T*.0015+l.x)*.08;const sp=18,[tl]=[iso(l.x-3,l.y,RH)],[tr]=[iso(l.x+3,l.y,RH)],[bl]=[iso(l.x-sp,l.y,0)],[br]=[iso(l.x+sp,l.y,0)];X.beginPath();X.moveTo(tl[0],tl[1]);X.lineTo(bl[0],bl[1]);X.lineTo(br[0],br[1]);X.lineTo(tr[0],tr[1]);X.closePath();X.fillStyle=cg;X.fill();X.restore()})}
+
+let particles=[];
+function initP(){particles=[];for(let i=0;i<60;i++)particles.push({x:5+Math.random()*(RW-10),y:5+Math.random()*(RD-10),z:5+Math.random()*(RH-10),vx:(Math.random()-.5)*.12,vy:(Math.random()-.5)*.12,vz:(Math.random()-.5)*.08,size:.8+Math.random()*1.8,color:RAINBOW[Math.floor(Math.random()*RAINBOW.length)],phase:Math.random()*Math.PI*2})}initP();
+function drawParticles(){particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;if(p.x<3||p.x>RW-3)p.vx*=-1;if(p.y<3||p.y>RD-3)p.vy*=-1;if(p.z<3||p.z>RH-3)p.vz*=-1;const a=Math.sin(T*.003+p.phase)*.3+.5,[sx,sy]=iso(p.x,p.y,p.z);X.globalAlpha=a;X.beginPath();X.arc(sx,sy,p.size*SC,0,Math.PI*2);X.fillStyle=p.color;X.shadowColor=p.color;X.shadowBlur=3;X.fill();X.shadowBlur=0;X.globalAlpha=1})}
+
+function hexPath(r){const cx=W/2,cy=H/2;X.beginPath();for(let i=0;i<6;i++){const a=Math.PI/6+i*Math.PI/3,px=cx+r*Math.cos(a),py=cy+r*Math.sin(a);i===0?X.moveTo(px,py):X.lineTo(px,py)}X.closePath()}
+function drawHexBorder(r){const cx=W/2,cy=H/2;X.save();hexPath(r);X.shadowColor=C.amber;X.shadowBlur=40+Math.sin(T*.002)*12;X.strokeStyle='#664411'+'88';X.lineWidth=3;X.stroke();X.restore();hexPath(r);X.strokeStyle='#0e1a2a';X.lineWidth=10;X.stroke();hexPath(r);X.strokeStyle='#3a2818';X.lineWidth=4;X.stroke();hexPath(r);X.strokeStyle=C.amber+'33';X.lineWidth=2;X.stroke();for(let i=0;i<6;i++){const a=Math.PI/6+i*Math.PI/3,px=cx+r*Math.cos(a),py=cy+r*Math.sin(a);X.beginPath();X.arc(px,py,6,0,Math.PI*2);X.fillStyle='#1e2848';X.fill();X.beginPath();X.arc(px,py,3,0,Math.PI*2);X.fillStyle='#0e1228';X.fill();X.beginPath();X.arc(px,py,1.5,0,Math.PI*2);X.fillStyle='#664411'+'66';X.fill()}
+function rrect(x,y,w,h,r){X.beginPath();X.moveTo(x+r,y);X.lineTo(x+w-r,y);X.arcTo(x+w,y,x+w,y+r,r);X.lineTo(x+w,y+h-r);X.arcTo(x+w,y+h,x+w-r,y+h,r);X.lineTo(x+r,y+h);X.arcTo(x,y+h,x,y+h-r,r);X.lineTo(x,y+r);X.arcTo(x,y,x+r,y,r);X.closePath()}
+const pw=220,ph=30,plateX=cx-pw/2,plateY=cy-r-24;X.fillStyle='#0a1220';X.strokeStyle='#3a2818';X.lineWidth=2;rrect(plateX,plateY,pw,ph,5);X.fill();X.stroke();X.fillStyle=C.amber+'33';X.fillRect(plateX+15,plateY+ph-2,pw-30,1);X.font='700 13px system-ui';X.fillStyle='#d8c8a8';X.textAlign='center';X.textBaseline='middle';X.fillText('REVIEW & REVERT LAB',cx,plateY+ph/2);X.textAlign='left'}
+
+function render(){
+  T=performance.now();SC=Math.min(W,H)*.0026;OX=W/2+5;OY=H/2+45;
+  X.clearRect(0,0,W,H);
+  const bg=X.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.7);bg.addColorStop(0,'#100c08');bg.addColorStop(1,'#040408');X.fillStyle=bg;X.fillRect(0,0,W,H);
+  X.save();const r=Math.min(W,H)*.46;hexPath(r);X.clip();
+  drawCeilingLights();drawWalls();
+  wallScreen('back',{x:3,z:55},{w:32,h:30},'diff');
+  wallScreen('back',{x:40,z:48},{w:52,h:38},'diff');
+  wallScreen('back',{x:96,z:55},{w:36,h:30},'code');
+  wallScreen('back',{x:5,z:22},{w:28,h:28},'line');
+  wallScreen('back',{x:38,z:18},{w:26,h:25},'bars');
+  wallScreen('back',{x:70,z:20},{w:26,h:26},'diff');
+  wallScreen('back',{x:100,z:22},{w:32,h:28},'code');
+  wallScreen('left',{x:5,z:50},{w:30,h:32},'diff');
+  wallScreen('left',{x:40,z:50},{w:28,h:30},'bars');
+  wallScreen('left',{x:72,z:52},{w:30,h:28},'code');
+  wallScreen('left',{x:8,z:18},{w:26,h:26},'diff');
+  wallScreen('left',{x:38,z:16},{w:28,h:28},'line');
+  wallScreen('left',{x:72,z:20},{w:30,h:25},'bars');
+  drawFloor();
+  serverRack(3,5,12,14,48);serverRack(3,23,12,14,44);
+  serverRack(120,5,12,14,46);
+  desk(20,25,28,14);chair(22,42);
+  desk(20,55,28,14);chair(22,72);
+  drawDiffDisplay(70,55); // <<< HERO
+  desk(100,60,26,14);chair(102,77);
+  desk(30,90,26,14);chair(32,107);
+  smallBox(100,85,12,10,14,C.metal);
+  crate(115,92);crate(75,105);crate(90,108);
+  drawParticles();
+  X.restore();
+  drawHexBorder(r);
+  requestAnimationFrame(render);
+}
+render();
+</script>
+</body>
+</html>

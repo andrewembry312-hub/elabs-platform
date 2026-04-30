@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE MACHINE — Knowledge Store</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#060610;display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// ═══════════════════════════════════════════════════
+//  KNOWLEDGE STORE — Library & Archive Vault
+//  Hero: Glowing crystal artifact on pedestal + bookshelves
+// ═══════════════════════════════════════════════════
+
+const cv=document.getElementById('c'),X=cv.getContext('2d');
+let W,H,T=0,SC=1,OX=0,OY=0;
+const COS30=Math.cos(Math.PI/6),SIN30=.5;
+function resize(){const d=devicePixelRatio||1;W=innerWidth||1;H=innerHeight||1;cv.width=W*d;cv.height=H*d;cv.style.width=W+'px';cv.style.height=H+'px';X.setTransform(d,0,0,d,0,0);SC=Math.min(W,H)*.0026;OX=W/2+5;OY=H/2+45}
+addEventListener('resize',resize);resize();
+function iso(x,y,z){return[OX+(x-y)*COS30*SC,OY+(x+y)*SIN30*SC-z*SC]}
+const RW=140,RD=140,RH=95;
+const C={floorDark:'#0c1218',floorLight:'#121a24',wallBack:'#0a1018',wallLeft:'#080e14',trim:'#1a2a3e',trimDim:'#10182a',metal:'#0e1620',metalLt:'#1a2838',metalHi:'#2a3a50',cyan:'#00ccff',cyanBright:'#44eeff',cyanDim:'#006688',green:'#22ff66',greenDim:'#118833',amber:'#ffaa22',purple:'#aa66ff',purpleDim:'#553388',pink:'#ff44aa',yellow:'#ffdd44',red:'#ff4444',orange:'#ff8844',screenBg:'#020810',screenBdr:'#0a5580'};
+const RAINBOW=[C.cyan,C.green,C.amber,C.purple,C.pink,C.yellow,C.orange,'#44ddaa','#6688ff',C.red];
+
+function poly(pts,fill,stroke,lw){X.beginPath();const[sx,sy]=iso(...pts[0]);X.moveTo(sx,sy);for(let i=1;i<pts.length;i++){const[px,py]=iso(...pts[i]);X.lineTo(px,py)}X.closePath();if(fill){X.fillStyle=fill;X.fill()}if(stroke){X.strokeStyle=stroke;X.lineWidth=lw||1;X.stroke()}}
+function box(x,y,z,w,d,h,cT,cL,cR,str){poly([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]],cT,str,.5);poly([[x,y+d,z],[x,y+d,z+h],[x+w,y+d,z+h],[x+w,y+d,z]],cL,str,.5);poly([[x+w,y,z],[x+w,y,z+h],[x+w,y+d,z+h],[x+w,y+d,z]],cR,str,.5)}
+function glow(wx,wy,wz,r,color,a){const[cx,cy]=iso(wx,wy,wz);const rad=r*SC;const g=X.createRadialGradient(cx,cy,0,cx,cy,rad);g.addColorStop(0,color+(a||'22'));g.addColorStop(1,'transparent');X.fillStyle=g;X.fillRect(cx-rad,cy-rad,rad*2,rad*2)}
+
+function drawFloor(){const ts=10;for(let gx=0;gx<RW;gx+=ts)for(let gy=0;gy<RD;gy+=ts){const ch=((gx/ts+gy/ts)%2===0);poly([[gx,gy,0],[gx+ts,gy,0],[gx+ts,gy+ts,0],[gx,gy+ts,0]],ch?C.floorLight:C.floorDark,'#0e182844',.3)}}
+function drawWalls(){poly([[0,0,0],[RW,0,0],[RW,0,RH],[0,0,RH]],C.wallBack);poly([[0,0,0],[0,RD,0],[0,RD,RH],[0,0,RH]],C.wallLeft);for(let wx=8;wx<RW;wx+=12){const[x1,y1]=iso(wx,.2,2),[x2,y2]=iso(wx,.2,RH-2);X.beginPath();X.moveTo(x1,y1);X.lineTo(x2,y2);X.strokeStyle=C.trim+'18';X.lineWidth=.4;X.stroke()}for(let wz=10;wz<RH;wz+=15){const[x1,y1]=iso(2,.2,wz),[x2,y2]=iso(RW-2,.2,wz);X.beginPath();X.moveTo(x1,y1);X.lineTo(x2,y2);X.strokeStyle=C.trim+'12';X.lineWidth=.3;X.stroke()}for(let wy=8;wy<RD;wy+=14){const[x1,y1]=iso(.2,wy,2),[x2,y2]=iso(.2,wy,RH-2);X.beginPath();X.moveTo(x1,y1);X.lineTo(x2,y2);X.strokeStyle=C.trim+'14';X.lineWidth=.3;X.stroke()}const[c1x,c1y]=iso(0,0,RH),[c2x,c2y]=iso(RW,0,RH),[c3x,c3y]=iso(0,RD,RH);X.beginPath();X.moveTo(c3x,c3y);X.lineTo(c1x,c1y);X.lineTo(c2x,c2y);X.strokeStyle=C.trim+'60';X.lineWidth=1.5;X.stroke()}
+
+function wallScreen(face,pos,dim,content){const{x,z}=pos,{w,h}=dim;let pts;if(face==='back')pts=[[x,.8,z],[x+w,.8,z],[x+w,.8,z+h],[x,.8,z+h]];else pts=[[.8,x,z],[.8,x+w,z],[.8,x+w,z+h],[.8,x,z+h]];poly(pts,C.screenBg,C.screenBdr+'55',.8);for(let sl=1;sl<h;sl+=1.5){let p1,p2;if(face==='back'){p1=iso(x+.5,.6,z+sl);p2=iso(x+w-.5,.6,z+sl)}else{p1=iso(.6,x+.5,z+sl);p2=iso(.6,x+w-.5,z+sl)}X.beginPath();X.moveTo(p1[0],p1[1]);X.lineTo(p2[0],p2[1]);X.strokeStyle=C.cyanDim+'06';X.lineWidth=.4;X.stroke()}
+if(content==='bars'){const numBars=Math.floor(w/2.5),barW=(w-3)/numBars;for(let b=0;b<numBars;b++){const val=Math.sin(T*.002+b*.6)*.3+.65,bh=val*(h-4),bx=x+1.5+b*barW,bz=z+2,col=RAINBOW[b%RAINBOW.length];let p;if(face==='back')p=[[bx,.5,bz],[bx+barW*.75,.5,bz],[bx+barW*.75,.5,bz+bh],[bx,.5,bz+bh]];else p=[[.5,bx,bz],[.5,bx+barW*.75,bz],[.5,bx+barW*.75,bz+bh],[.5,bx,bz+bh]];poly(p,col+'99')}}
+else if(content==='line'){[C.cyanBright,C.cyan,C.green].forEach((col,ci)=>{X.beginPath();for(let p=0;p<20;p++){const px=x+1.5+(w-3)*(p/19),val=Math.sin(T*.003*(ci+1)+p*.5+ci*2)*.3+.5,pz=z+2+val*(h-4),pt=face==='back'?iso(px,.4,pz):iso(.4,px,pz);p===0?X.moveTo(pt[0],pt[1]):X.lineTo(pt[0],pt[1])}X.strokeStyle=col+'cc';X.lineWidth=1.2;X.shadowColor=col;X.shadowBlur=6;X.stroke();X.shadowBlur=0})}
+else if(content==='map'){const nodes=[];for(let i=0;i<15;i++)nodes.push({nx:x+2+Math.random()*(w-4),nz:z+2+Math.random()*(h-4)});X.globalAlpha=.4;for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++)if(Math.random()<.25){const p1=face==='back'?iso(nodes[i].nx,.4,nodes[i].nz):iso(.4,nodes[i].nx,nodes[i].nz),p2=face==='back'?iso(nodes[j].nx,.4,nodes[j].nz):iso(.4,nodes[j].nx,nodes[j].nz);X.beginPath();X.moveTo(p1[0],p1[1]);X.lineTo(p2[0],p2[1]);X.strokeStyle=C.cyan+'55';X.lineWidth=.5;X.stroke()}X.globalAlpha=1;nodes.forEach((n,i)=>{const pt=face==='back'?iso(n.nx,.3,n.nz):iso(.3,n.nx,n.nz);X.beginPath();X.arc(pt[0],pt[1],2*SC,0,Math.PI*2);X.fillStyle=RAINBOW[i%RAINBOW.length];X.shadowColor=RAINBOW[i%RAINBOW.length];X.shadowBlur=4;X.fill();X.shadowBlur=0})}
+else if(content==='code'){for(let r=0;r<Math.floor(h/2.5);r++){const rz=z+1.5+r*2.5,rw=(Math.sin(T*.001+r*1.1)*.25+.55)*(w-3),col=r%3===0?C.cyan:r%3===1?C.green:C.amber;let p1,p2;if(face==='back'){p1=iso(x+1.5,.4,rz);p2=iso(x+1.5+rw,.4,rz)}else{p1=iso(.4,x+1.5,rz);p2=iso(.4,x+1.5+rw,rz)}X.beginPath();X.moveTo(p1[0],p1[1]);X.lineTo(p2[0],p2[1]);X.strokeStyle=col+'55';X.lineWidth=1.5;X.stroke()}}
+pts.forEach(p=>{const[px,py]=iso(...p);X.beginPath();X.arc(px,py,1.5,0,Math.PI*2);X.fillStyle=C.screenBdr+'88';X.fill()})}
+
+function chair(cx,cy){box(cx,cy,0,6,6,2,C.metal,C.metal,C.metal);box(cx+2.5,cy+2.5,2,1.5,1.5,10,C.metal,C.metal,C.metal);box(cx-1,cy-1,12,8,8,2,C.metalLt,'#0c1520','#0c1520');box(cx,cy-1,14,1.5,8,10,C.metalLt+'88','#0a1018','#0a1018')}
+function smallBox(sx,sy,sw,sd,sh,col){box(sx,sy,0,sw,sd,sh,col+'aa',col+'77',col+'88',C.trim+'22')}
+function crate(sx,sy){smallBox(sx,sy,8,8,6,C.metal);const[tx,ty]=iso(sx+4,sy+4,6.5);X.beginPath();X.arc(tx,ty,2*SC,0,Math.PI*2);X.fillStyle=C.trimDim;X.fill()}
+
+// ─── Massive Bookshelves ─────────────────────────────────
+function bookshelf(bx, by, bw, bd, bh, face) {
+  // Frame
+  box(bx, by, 0, bw, bd, bh, C.metalLt, C.metal, C.metal+'cc', C.trim+'44');
+  const shelves = 6, shH = (bh-2)/shelves;
+  for(let s=0; s<shelves; s++){
+    const sz = 1 + s*shH;
+    // Shelf surface
+    if(face==='right'){
+      poly([[bx+bw,by,sz+shH],[bx+bw,by+bd,sz+shH],[bx+bw,by+bd,sz+shH+.5],[bx+bw,by,sz+shH+.5]], C.trim+'55');
+    } else {
+      poly([[bx,by+bd,sz+shH],[bx+bw,by+bd,sz+shH],[bx+bw,by+bd,sz+shH+.5],[bx,by+bd,sz+shH+.5]], C.trim+'55');
+    }
+    // Books on shelf
+    const numBooks = Math.floor(bw/2.5);
+    for(let b=0; b<numBooks; b++){
+      const bookH = shH*(0.5+Math.sin(b*1.7+s)*.35);
+      const bCol = RAINBOW[(s*numBooks+b)%RAINBOW.length];
+      if(face==='right'){
+        const bx2 = bx+bw+.3, by2 = by+1+b*(bd-2)/numBooks;
+        poly([[bx2,by2,sz+1],[bx2,by2+1.5,sz+1],[bx2,by2+1.5,sz+1+bookH],[bx2,by2,sz+1+bookH]], bCol+'66');
+      } else {
+        const bbx = bx+1+b*(bw-2)/numBooks, bby = by+bd+.3;
+        poly([[bbx,bby,sz+1],[bbx+1.5,bby,sz+1],[bbx+1.5,bby,sz+1+bookH],[bbx,bby,sz+1+bookH]], bCol+'66');
+      }
+    }
+  }
+}
+
+// ─── HERO: Glowing Crystal on Pedestal ───────────────────
+function drawKnowledgeCrystal(bx, by) {
+  // Pedestal base
+  box(bx-10, by-10, 0, 20, 20, 5, C.metalLt, C.metal, C.metal+'cc', C.trim+'44');
+  box(bx-7, by-7, 5, 14, 14, 3, '#0a1820', '#081418', '#081418', C.cyanDim+'55');
+  box(bx-5, by-5, 8, 10, 10, 20, C.metal, C.metal+'dd', C.metal+'bb', C.trim+'33');
+
+  const crysZ = 30;
+  const float = Math.sin(T*.002)*3;
+
+  // Ground glow
+  glow(bx, by, 0, 50, C.cyan, '18');
+
+  // Vertical beam
+  X.save(); X.globalAlpha = .08 + Math.sin(T*.002)*.03;
+  const [bBot]=[iso(bx,by,28)], [bTop]=[iso(bx,by,crysZ+35+float)];
+  const beamG = X.createLinearGradient(bBot[0],bBot[1],bTop[0],bTop[1]);
+  beamG.addColorStop(0, C.cyanBright);beamG.addColorStop(1,'transparent');
+  X.beginPath();X.moveTo(bBot[0]-8*SC,bBot[1]);X.lineTo(bTop[0]-2*SC,bTop[1]);X.lineTo(bTop[0]+2*SC,bTop[1]);X.lineTo(bBot[0]+8*SC,bBot[1]);X.closePath();X.fillStyle=beamG;X.fill();
+  X.restore();
+
+  // Crystal shape — hexagonal prism with pointed top
+  const cR = 8, cH = 25;
+  const cBase = crysZ + float;
+  const [ccx_, ccy_] = iso(bx, by, cBase + cH/2);
+
+  // Crystal body faces (6 faces of a hexagonal prism)
+  for(let f = 0; f < 6; f++){
+    const a1 = f*Math.PI/3, a2 = (f+1)*Math.PI/3;
+    const x1 = bx+Math.cos(a1)*cR, y1 = by+Math.sin(a1)*cR;
+    const x2 = bx+Math.cos(a2)*cR, y2 = by+Math.sin(a2)*cR;
+    const alphaVal = (f < 3) ? '33' : '22';
+    poly([[x1,y1,cBase],[x2,y2,cBase],[x2,y2,cBase+cH],[x1,y1,cBase+cH]],
+      C.cyanBright+alphaVal, C.cyan+'44', .8);
+  }
+
+  // Top point
+  for(let f = 0; f < 6; f++){
+    const a1 = f*Math.PI/3, a2 = (f+1)*Math.PI/3;
+    const x1 = bx+Math.cos(a1)*cR, y1 = by+Math.sin(a1)*cR;
+    const x2 = bx+Math.cos(a2)*cR, y2 = by+Math.sin(a2)*cR;
+    poly([[x1,y1,cBase+cH],[x2,y2,cBase+cH],[bx,by,cBase+cH+12]],
+      C.cyan+(f<3?'44':'22'), C.cyanBright+'44', .5);
+  }
+
+  // Bottom point
+  for(let f = 3; f < 6; f++){
+    const a1 = f*Math.PI/3, a2 = (f+1)*Math.PI/3;
+    const x1 = bx+Math.cos(a1)*cR, y1 = by+Math.sin(a1)*cR;
+    const x2 = bx+Math.cos(a2)*cR, y2 = by+Math.sin(a2)*cR;
+    poly([[x1,y1,cBase],[x2,y2,cBase],[bx,by,cBase-8]],
+      C.cyanDim+'22', C.cyan+'22', .5);
+  }
+
+  // Inner glow
+  const [igx,igy] = iso(bx, by, cBase+cH/2);
+  const igR = 15*SC;
+  const ig = X.createRadialGradient(igx,igy,0,igx,igy,igR);
+  ig.addColorStop(0, C.cyanBright+'44');
+  ig.addColorStop(.5, C.cyan+'22');
+  ig.addColorStop(1, 'transparent');
+  X.fillStyle = ig;
+  X.fillRect(igx-igR*2, igy-igR*2, igR*4, igR*4);
+
+  // Orbiting knowledge sparks
+  for(let s=0; s<8; s++){
+    const sa = T*.003 + s*Math.PI/4;
+    const sr = 15 + Math.sin(T*.002+s)*5;
+    const sx2 = bx + Math.cos(sa)*sr;
+    const sy2 = by + Math.sin(sa)*sr;
+    const sz2 = cBase + cH/2 + float + Math.sin(T*.004+s*1.7)*10;
+    const [px,py] = iso(sx2, sy2, sz2);
+    X.globalAlpha = .6+Math.sin(T*.005+s)*.3;
+    X.beginPath();X.arc(px,py,2*SC,0,Math.PI*2);
+    X.fillStyle=RAINBOW[s%RAINBOW.length];X.shadowColor=RAINBOW[s%RAINBOW.length];X.shadowBlur=6;X.fill();X.shadowBlur=0;
+    // Connecting line to crystal
+    const [ccx2,ccy2]=iso(bx,by,cBase+cH/2+float);
+    X.beginPath();X.moveTo(px,py);X.lineTo(ccx2,ccy2);
+    X.strokeStyle=RAINBOW[s%RAINBOW.length]+'18';X.lineWidth=.5;X.stroke();
+    X.globalAlpha=1;
+  }
+
+  // Faint rune ring around pedestal
+  const [rcx,rcy]=iso(bx,by,2);
+  X.globalAlpha=.2+Math.sin(T*.002)*.1;
+  X.beginPath();X.ellipse(rcx,rcy,18*COS30*SC,18*SIN30*SC,0,0,Math.PI*2);
+  X.strokeStyle=C.cyan;X.lineWidth=1;X.stroke();
+  X.globalAlpha=1;
+}
+
+function drawCeilingLights(){[{x:30,y:25},{x:85,y:25},{x:30,y:80},{x:85,y:80}].forEach(l=>{const[top]=[iso(l.x,l.y,RH)],[bot]=[iso(l.x,l.y,0)];const cg=X.createLinearGradient(top[0],top[1],bot[0],bot[1]);cg.addColorStop(0,C.cyanDim+'10');cg.addColorStop(.6,C.cyanDim+'03');cg.addColorStop(1,'transparent');X.save();X.globalAlpha=.3+Math.sin(T*.0015+l.x)*.08;const sp=18,[tl]=[iso(l.x-3,l.y,RH)],[tr]=[iso(l.x+3,l.y,RH)],[bl]=[iso(l.x-sp,l.y,0)],[br]=[iso(l.x+sp,l.y,0)];X.beginPath();X.moveTo(tl[0],tl[1]);X.lineTo(bl[0],bl[1]);X.lineTo(br[0],br[1]);X.lineTo(tr[0],tr[1]);X.closePath();X.fillStyle=cg;X.fill();X.restore()})}
+
+let particles=[];
+function initP(){particles=[];for(let i=0;i<60;i++)particles.push({x:5+Math.random()*(RW-10),y:5+Math.random()*(RD-10),z:5+Math.random()*(RH-10),vx:(Math.random()-.5)*.1,vy:(Math.random()-.5)*.1,vz:(Math.random()-.5)*.06,size:.8+Math.random()*1.8,color:RAINBOW[Math.floor(Math.random()*RAINBOW.length)],phase:Math.random()*Math.PI*2})}initP();
+function drawParticles(){particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.z+=p.vz;if(p.x<3||p.x>RW-3)p.vx*=-1;if(p.y<3||p.y>RD-3)p.vy*=-1;if(p.z<3||p.z>RH-3)p.vz*=-1;const a=Math.sin(T*.003+p.phase)*.3+.5,[sx,sy]=iso(p.x,p.y,p.z);X.globalAlpha=a;X.beginPath();X.arc(sx,sy,p.size*SC,0,Math.PI*2);X.fillStyle=p.color;X.shadowColor=p.color;X.shadowBlur=3;X.fill();X.shadowBlur=0;X.globalAlpha=1})}
+
+function hexPath(r){const cx=W/2,cy=H/2;X.beginPath();for(let i=0;i<6;i++){const a=Math.PI/6+i*Math.PI/3,px=cx+r*Math.cos(a),py=cy+r*Math.sin(a);i===0?X.moveTo(px,py):X.lineTo(px,py)}X.closePath()}
+function drawHexBorder(r){const cx=W/2,cy=H/2;X.save();hexPath(r);X.shadowColor=C.cyanBright;X.shadowBlur=40+Math.sin(T*.002)*12;X.strokeStyle=C.cyanDim+'88';X.lineWidth=3;X.stroke();X.restore();hexPath(r);X.strokeStyle='#0e1a2a';X.lineWidth=10;X.stroke();hexPath(r);X.strokeStyle='#183840';X.lineWidth=4;X.stroke();hexPath(r);X.strokeStyle=C.cyan+'33';X.lineWidth=2;X.stroke();for(let i=0;i<6;i++){const a=Math.PI/6+i*Math.PI/3,px=cx+r*Math.cos(a),py=cy+r*Math.sin(a);X.beginPath();X.arc(px,py,6,0,Math.PI*2);X.fillStyle='#1e2848';X.fill();X.beginPath();X.arc(px,py,3,0,Math.PI*2);X.fillStyle='#0e1228';X.fill();X.beginPath();X.arc(px,py,1.5,0,Math.PI*2);X.fillStyle=C.cyanDim+'66';X.fill()}
+function rrect(x,y,w,h,r){X.beginPath();X.moveTo(x+r,y);X.lineTo(x+w-r,y);X.arcTo(x+w,y,x+w,y+r,r);X.lineTo(x+w,y+h-r);X.arcTo(x+w,y+h,x+w-r,y+h,r);X.lineTo(x+r,y+h);X.arcTo(x,y+h,x,y+h-r,r);X.lineTo(x,y+r);X.arcTo(x,y,x+r,y,r);X.closePath()}
+const pw=220,ph=30,plateX=cx-pw/2,plateY=cy-r-24;X.fillStyle='#0a1220';X.strokeStyle='#183840';X.lineWidth=2;rrect(plateX,plateY,pw,ph,5);X.fill();X.stroke();X.fillStyle=C.cyan+'33';X.fillRect(plateX+15,plateY+ph-2,pw-30,1);X.font='700 13px system-ui';X.fillStyle='#a8d8e8';X.textAlign='center';X.textBaseline='middle';X.fillText('KNOWLEDGE STORE',cx,plateY+ph/2);X.textAlign='left'}
+
+function render(){
+  T=performance.now();SC=Math.min(W,H)*.0026;OX=W/2+5;OY=H/2+45;
+  X.clearRect(0,0,W,H);
+  const bg=X.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.7);bg.addColorStop(0,'#081418');bg.addColorStop(1,'#040408');X.fillStyle=bg;X.fillRect(0,0,W,H);
+  X.save();const r=Math.min(W,H)*.46;hexPath(r);X.clip();
+  drawCeilingLights();drawWalls();
+  // Screens — knowledge graphs and search interfaces
+  wallScreen('back',{x:3,z:58},{w:30,h:28},'map');
+  wallScreen('back',{x:37,z:48},{w:52,h:38},'bars');
+  wallScreen('back',{x:93,z:58},{w:38,h:28},'map');
+  wallScreen('back',{x:5,z:22},{w:28,h:28},'code');
+  wallScreen('back',{x:38,z:18},{w:24,h:25},'line');
+  wallScreen('back',{x:68,z:20},{w:26,h:26},'map');
+  wallScreen('back',{x:98,z:22},{w:34,h:28},'bars');
+  wallScreen('left',{x:5,z:50},{w:28,h:32},'map');
+  wallScreen('left',{x:38,z:50},{w:30,h:30},'line');
+  wallScreen('left',{x:72,z:52},{w:30,h:28},'bars');
+  wallScreen('left',{x:8,z:18},{w:26,h:26},'code');
+  wallScreen('left',{x:38,z:16},{w:28,h:28},'map');
+  wallScreen('left',{x:72,z:20},{w:30,h:25},'line');
+  drawFloor();
+  // Back wall bookshelves  
+  bookshelf(3, 3, 14, 12, 80, 'front');
+  bookshelf(20, 3, 14, 12, 80, 'front');
+  bookshelf(100, 3, 14, 12, 80, 'front');
+  bookshelf(118, 3, 14, 12, 80, 'front');
+  // Left wall bookshelves
+  bookshelf(3, 20, 12, 14, 75, 'right');
+  bookshelf(3, 38, 12, 14, 75, 'right');
+  bookshelf(3, 56, 12, 14, 70, 'right');
+  // Reading desk area
+  box(25, 35, 0, 26, 14, 16, C.metalLt+'cc', C.metal, C.metal+'bb', C.trim+'22');
+  chair(27, 52);
+  box(25, 65, 0, 26, 14, 16, C.metalLt+'cc', C.metal, C.metal+'bb', C.trim+'22');
+  chair(27, 82);
+  drawKnowledgeCrystal(70, 60); // <<< HERO
+  // Reading nook right
+  box(95, 50, 0, 26, 14, 16, C.metalLt+'cc', C.metal, C.metal+'bb', C.trim+'22');
+  chair(97, 67);
+  smallBox(60, 95, 12, 10, 10, C.metalLt);
+  crate(78, 100);crate(90, 105);
+  smallBox(108, 85, 12, 10, 12, C.metal);
+  drawParticles();
+  X.restore();
+  drawHexBorder(r);
+  requestAnimationFrame(render);
+}
+render();
+</script>
+</body>
+</html>

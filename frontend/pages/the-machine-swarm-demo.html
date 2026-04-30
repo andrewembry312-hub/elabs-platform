@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE MACHINE — Bonsai Agent Swarm Demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a12;color:#e0e0e0;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100vh;width:100vw}
+#mainCanvas{position:absolute;top:0;left:0;width:100%;height:100%}
+
+/* HUD Overlay */
+#hud{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+
+/* VRAM Bar */
+#vramPanel{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:rgba(8,8,20,0.92);border:1px solid rgba(0,229,255,0.25);border-radius:12px;padding:12px 28px;pointer-events:auto;min-width:520px;backdrop-filter:blur(12px)}
+#vramPanel h3{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#00e5ff;margin-bottom:8px;text-align:center}
+#vramBarOuter{width:100%;height:22px;background:rgba(255,255,255,0.06);border-radius:11px;overflow:hidden;position:relative}
+#vramBarInner{height:100%;border-radius:11px;transition:width 0.5s ease,background 0.5s ease;background:linear-gradient(90deg,#00e5ff,#69f0ae)}
+#vramText{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:11px;font-weight:700;color:#fff;text-shadow:0 0 6px rgba(0,0,0,0.8)}
+#vramDetails{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:rgba(255,255,255,0.5)}
+
+/* Agent Status Panel */
+#agentPanel{position:absolute;top:16px;right:16px;background:rgba(8,8,20,0.92);border:1px solid rgba(0,229,255,0.2);border-radius:12px;padding:14px 18px;pointer-events:auto;width:280px;max-height:45vh;overflow-y:auto;backdrop-filter:blur(12px)}
+#agentPanel h3{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#00e5ff;margin-bottom:10px}
+.agent-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:11px}
+.agent-row:last-child{border-bottom:none}
+.agent-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.agent-name{font-weight:600;min-width:60px}
+.agent-status{color:rgba(255,255,255,0.5);flex:1;text-align:right;font-size:10px}
+
+/* Task Log */
+#taskLog{position:absolute;bottom:16px;left:16px;background:rgba(8,8,20,0.92);border:1px solid rgba(0,229,255,0.2);border-radius:12px;padding:14px 18px;pointer-events:auto;width:380px;max-height:30vh;overflow-y:auto;backdrop-filter:blur(12px)}
+#taskLog h3{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#00e5ff;margin-bottom:8px}
+.log-entry{font-size:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.03);line-height:1.5}
+.log-entry .time{color:rgba(0,229,255,0.6);margin-right:6px}
+.log-entry .action{color:rgba(255,255,255,0.7)}
+.log-entry .highlight{color:#69f0ae;font-weight:600}
+.log-entry .warn{color:#ffab00}
+.log-entry .despawn{color:#ff5252}
+
+/* Pipeline Info */
+#pipelinePanel{position:absolute;bottom:16px;right:16px;background:rgba(8,8,20,0.92);border:1px solid rgba(0,229,255,0.2);border-radius:12px;padding:14px 18px;pointer-events:auto;width:280px;backdrop-filter:blur(12px)}
+#pipelinePanel h3{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#00e5ff;margin-bottom:8px}
+#taskDescription{font-size:11px;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:10px}
+#pipelineStage{font-size:12px;font-weight:600;color:#69f0ae}
+
+/* Title */
+#titleBar{position:absolute;top:16px;left:16px;pointer-events:none}
+#titleBar h1{font-size:16px;font-weight:700;letter-spacing:3px;color:#00e5ff;text-shadow:0 0 20px rgba(0,229,255,0.4)}
+#titleBar h2{font-size:10px;color:rgba(255,255,255,0.35);letter-spacing:1px;margin-top:2px}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,229,255,0.2);border-radius:2px}
+</style>
+</head>
+<body>
+<canvas id="mainCanvas"></canvas>
+
+<div id="hud">
+  <div id="titleBar">
+    <h1>THE MACHINE</h1>
+    <h2>BONSAI SWARM ORCHESTRATION</h2>
+  </div>
+
+  <div id="vramPanel">
+    <h3>GPU VRAM — 12 GB</h3>
+    <div id="vramBarOuter">
+      <div id="vramBarInner" style="width:0%"></div>
+      <div id="vramText">0.0 / 12.0 GB</div>
+    </div>
+    <div id="vramDetails">
+      <span id="vramAgentCount">0 agents loaded</span>
+      <span id="vramFree">12.0 GB free</span>
+    </div>
+  </div>
+
+  <div id="agentPanel">
+    <h3>ACTIVE AGENTS</h3>
+    <div id="agentList"></div>
+  </div>
+
+  <div id="taskLog">
+    <h3>SYSTEM LOG</h3>
+    <div id="logEntries"></div>
+  </div>
+
+  <div id="pipelinePanel">
+    <h3>CURRENT PIPELINE</h3>
+    <div id="taskDescription">Awaiting task submission...</div>
+    <div id="pipelineStage">IDLE</div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════════════════════════════════════
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+let W, H, cx, cy;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  cx = W / 2;
+  cy = H / 2;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ═══════════════════════════════════════════════════════════════════
+// NODE DEFINITIONS — 8 labs around the core
+// ═══════════════════════════════════════════════════════════════════
+const NODE_DEFS = [
+  { id: 'ingest',       label: 'DATA INGEST',       color: '#00e5ff', icon: '◆', angle: 0 },
+  { id: 'hypothesis',   label: 'HYPOTHESIS',         color: '#b388ff', icon: '◈', angle: 45 },
+  { id: 'implement',    label: 'IMPLEMENT',           color: '#69f0ae', icon: '⬡', angle: 90 },
+  { id: 'validation',   label: 'VALIDATION',          color: '#00b8d4', icon: '◎', angle: 135 },
+  { id: 'review',       label: 'REVIEW',              color: '#ffab00', icon: '⟐', angle: 180 },
+  { id: 'coordination', label: 'COORDINATION',        color: '#ff80ab', icon: '⊛', angle: 225 },
+  { id: 'tooling',      label: 'TOOLING',             color: '#ff6e40', icon: '⚙', angle: 270 },
+  { id: 'knowledge',    label: 'KNOWLEDGE',           color: '#00fff0', icon: '❖', angle: 315 },
+];
+
+const ORBIT_RADIUS_FACTOR = 0.30; // fraction of min(W,H)
+let nodes = [];
+
+function buildNodes() {
+  const r = Math.min(W, H) * ORBIT_RADIUS_FACTOR;
+  nodes = NODE_DEFS.map(d => {
+    const a = (d.angle - 90) * Math.PI / 180;
+    return {
+      ...d,
+      x: cx + Math.cos(a) * r,
+      y: cy + Math.sin(a) * r,
+      radius: 32,
+      active: false,
+      pulse: 0,
+      processProgress: 0,
+    };
+  });
+}
+buildNodes();
+window.addEventListener('resize', buildNodes);
+
+// ═══════════════════════════════════════════════════════════════════
+// VRAM MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+const TOTAL_VRAM = 12.0;
+const CEO_VRAM = 0;   // CEO not loaded during swarm demo
+const BONSAI_VRAM = 1.2;
+let usedVram = 0;
+
+function canSpawnAgent() { return (usedVram + BONSAI_VRAM) <= TOTAL_VRAM; }
+function allocVram(gb) { usedVram = Math.min(TOTAL_VRAM, usedVram + gb); updateVramUI(); }
+function freeVram(gb) { usedVram = Math.max(0, usedVram - gb); updateVramUI(); }
+
+function updateVramUI() {
+  const pct = (usedVram / TOTAL_VRAM) * 100;
+  const bar = document.getElementById('vramBarInner');
+  bar.style.width = pct + '%';
+  if (pct > 85) bar.style.background = 'linear-gradient(90deg,#ff5252,#ff1744)';
+  else if (pct > 60) bar.style.background = 'linear-gradient(90deg,#ffab00,#ff6e40)';
+  else bar.style.background = 'linear-gradient(90deg,#00e5ff,#69f0ae)';
+  document.getElementById('vramText').textContent = usedVram.toFixed(1) + ' / ' + TOTAL_VRAM.toFixed(1) + ' GB';
+  const active = agents.filter(a => a.state !== 'dead');
+  document.getElementById('vramAgentCount').textContent = active.length + ' agent' + (active.length !== 1 ? 's' : '') + ' loaded';
+  document.getElementById('vramFree').textContent = (TOTAL_VRAM - usedVram).toFixed(1) + ' GB free';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AGENT SYSTEM
+// ═══════════════════════════════════════════════════════════════════
+const AGENT_NAMES = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta'];
+const AGENT_COLORS = ['#00e5ff', '#b388ff', '#69f0ae', '#ffab00', '#ff80ab', '#ff6e40', '#00fff0', '#e0e0e0'];
+let agents = [];
+let agentIdCounter = 0;
+
+class Agent {
+  constructor(name, color, targetNodeId, task) {
+    this.id = agentIdCounter++;
+    this.name = name;
+    this.color = color;
+    this.targetNodeId = targetNodeId;
+    this.task = task;
+    this.x = cx;
+    this.y = cy;
+    this.state = 'spawning'; // spawning -> traveling -> processing -> returning -> idle -> dead
+    this.progress = 0;
+    this.spawnTimer = 0;
+    this.processTime = 0;
+    this.maxProcessTime = 3 + Math.random() * 5; // 3-8 seconds
+    this.trail = [];
+    this.targetNode = null;
+    this.result = '';
+    this.orbitAngle = Math.random() * Math.PI * 2;
+    this.orbitSpeed = 0.5 + Math.random() * 1.5;
+    this.size = 5;
+    this.alpha = 0;
+  }
+}
+
+function spawnAgent(targetNodeId, task) {
+  if (!canSpawnAgent()) {
+    addLog(`<span class="warn">⚠ VRAM FULL</span> — Cannot spawn agent (${usedVram.toFixed(1)}/${TOTAL_VRAM}GB used)`, 'warn');
+    return null;
+  }
+  const idx = agents.filter(a => a.state !== 'dead').length;
+  const name = AGENT_NAMES[idx % AGENT_NAMES.length];
+  const color = AGENT_COLORS[idx % AGENT_COLORS.length];
+  const agent = new Agent(name, color, targetNodeId, task);
+  agent.targetNode = nodes.find(n => n.id === targetNodeId);
+  agents.push(agent);
+  allocVram(BONSAI_VRAM);
+  addLog(`<span class="highlight">⬆ SPAWN</span> Agent-${name} (${BONSAI_VRAM}GB) → ${targetNodeId.toUpperCase()}: ${task}`);
+  return agent;
+}
+
+function despawnAgent(agent) {
+  agent.state = 'dead';
+  freeVram(BONSAI_VRAM);
+  addLog(`<span class="despawn">⬇ DESPAWN</span> Agent-${agent.name} freed ${BONSAI_VRAM}GB — Task complete`);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AGENT UPDATE LOGIC
+// ═══════════════════════════════════════════════════════════════════
+function updateAgents(dt) {
+  for (const a of agents) {
+    if (a.state === 'dead') continue;
+
+    // Trail
+    if (a.state === 'traveling' || a.state === 'returning') {
+      a.trail.push({ x: a.x, y: a.y, alpha: 1.0 });
+      if (a.trail.length > 30) a.trail.shift();
+    }
+    // Fade trail
+    for (const t of a.trail) t.alpha -= dt * 2;
+    a.trail = a.trail.filter(t => t.alpha > 0);
+
+    switch (a.state) {
+      case 'spawning':
+        a.spawnTimer += dt;
+        a.alpha = Math.min(1, a.spawnTimer / 0.6);
+        a.size = 5 + Math.sin(a.spawnTimer * 8) * 2;
+        if (a.spawnTimer > 0.8) {
+          a.state = 'traveling';
+          a.progress = 0;
+        }
+        break;
+
+      case 'traveling': {
+        a.progress += dt * (0.4 + Math.random() * 0.1);
+        const t = easeInOutCubic(Math.min(1, a.progress));
+        const node = a.targetNode;
+        // Bezier curve from core to node via control point
+        const cpx = cx + (node.x - cx) * 0.5 + (node.y - cy) * 0.3;
+        const cpy = cy + (node.y - cy) * 0.5 - (node.x - cx) * 0.3;
+        a.x = bezierPoint(cx, cpx, node.x, t);
+        a.y = bezierPoint(cy, cpy, node.y, t);
+        a.alpha = 1;
+        if (a.progress >= 1) {
+          a.state = 'processing';
+          a.processTime = 0;
+          a.x = node.x;
+          a.y = node.y;
+          node.active = true;
+          node.processProgress = 0;
+          addLog(`<span style="color:${node.color}">● ${node.label}</span> Agent-${a.name} processing: ${a.task}`);
+        }
+        break;
+      }
+
+      case 'processing': {
+        a.processTime += dt;
+        const node = a.targetNode;
+        node.processProgress = Math.min(1, a.processTime / a.maxProcessTime);
+        // Orbit around node while processing
+        a.orbitAngle += a.orbitSpeed * dt;
+        const orbR = node.radius + 12 + Math.sin(a.processTime * 2) * 4;
+        a.x = node.x + Math.cos(a.orbitAngle) * orbR;
+        a.y = node.y + Math.sin(a.orbitAngle) * orbR;
+        a.size = 5 + Math.sin(a.processTime * 4) * 1.5;
+        if (a.processTime >= a.maxProcessTime) {
+          a.state = 'returning';
+          a.progress = 0;
+          node.active = false;
+          node.processProgress = 0;
+          a.result = 'Complete';
+          addLog(`<span class="highlight">✓ DONE</span> Agent-${a.name} returning from ${node.label}`);
+        }
+        break;
+      }
+
+      case 'returning': {
+        a.progress += dt * 0.5;
+        const t = easeInOutCubic(Math.min(1, a.progress));
+        const node = a.targetNode;
+        const cpx = node.x + (cx - node.x) * 0.5 - (cy - node.y) * 0.3;
+        const cpy = node.y + (cy - node.y) * 0.5 + (cx - node.x) * 0.3;
+        a.x = bezierPoint(node.x, cpx, cx, t);
+        a.y = bezierPoint(node.y, cpy, cy, t);
+        if (a.progress >= 1) {
+          a.state = 'idle';
+          a.x = cx;
+          a.y = cy;
+          addLog(`<span style="color:${a.color}">↩ HOME</span> Agent-${a.name} returned to core with results`);
+        }
+        break;
+      }
+
+      case 'idle': {
+        // Orbit core gently
+        a.orbitAngle += 1.2 * dt;
+        const idleR = 25 + Math.sin(a.orbitAngle * 0.7) * 8;
+        a.x = cx + Math.cos(a.orbitAngle + a.id * 1.1) * idleR;
+        a.y = cy + Math.sin(a.orbitAngle + a.id * 1.1) * idleR;
+        a.size = 4 + Math.sin(a.orbitAngle * 2) * 1;
+        break;
+      }
+    }
+  }
+}
+
+function bezierPoint(p0, p1, p2, t) {
+  return (1-t)*(1-t)*p0 + 2*(1-t)*t*p1 + t*t*p2;
+}
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LOGGING
+// ═══════════════════════════════════════════════════════════════════
+function addLog(html) {
+  const el = document.getElementById('logEntries');
+  const now = new Date();
+  const ts = String(now.getHours()).padStart(2,'0') + ':' +
+             String(now.getMinutes()).padStart(2,'0') + ':' +
+             String(now.getSeconds()).padStart(2,'0');
+  el.innerHTML = `<div class="log-entry"><span class="time">[${ts}]</span> <span class="action">${html}</span></div>` + el.innerHTML;
+  // Keep max 50 entries
+  while (el.children.length > 50) el.removeChild(el.lastChild);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AGENT PANEL UPDATE
+// ═══════════════════════════════════════════════════════════════════
+function updateAgentPanel() {
+  const el = document.getElementById('agentList');
+  const alive = agents.filter(a => a.state !== 'dead');
+  if (alive.length === 0) {
+    el.innerHTML = '<div style="font-size:10px;color:rgba(255,255,255,0.3);text-align:center;padding:10px">No agents active</div>';
+    return;
+  }
+  el.innerHTML = alive.map(a => {
+    const stateLabels = {
+      spawning: '◌ Spawning...',
+      traveling: '→ Traveling to ' + (a.targetNode?.label || ''),
+      processing: '⚡ Processing @ ' + (a.targetNode?.label || ''),
+      returning: '← Returning to Core',
+      idle: '○ Idle @ Core',
+    };
+    return `<div class="agent-row">
+      <div class="agent-dot" style="background:${a.color};box-shadow:0 0 6px ${a.color}"></div>
+      <span class="agent-name" style="color:${a.color}">Agent-${a.name}</span>
+      <span class="agent-status">${stateLabels[a.state] || a.state}</span>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER — BACKGROUND GRID
+// ═══════════════════════════════════════════════════════════════════
+function drawGrid(time) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,229,255,0.03)';
+  ctx.lineWidth = 1;
+  const spacing = 60;
+  for (let x = 0; x < W; x += spacing) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += spacing) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER — CONNECTION PATHS (core to nodes)
+// ═══════════════════════════════════════════════════════════════════
+function drawConnections(time) {
+  ctx.save();
+  for (const node of nodes) {
+    const dx = node.x - cx;
+    const dy = node.y - cy;
+    // Curved connection line
+    const cpx = cx + dx * 0.5 + dy * 0.15;
+    const cpy = cy + dy * 0.5 - dx * 0.15;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.quadraticCurveTo(cpx, cpy, node.x, node.y);
+
+    const alpha = node.active ? 0.25 : 0.06;
+    ctx.strokeStyle = hexToRgba(node.color, alpha);
+    ctx.lineWidth = node.active ? 2 : 1;
+    ctx.stroke();
+
+    // Animated pulse along path when active
+    if (node.active) {
+      const pulseT = (time * 0.8) % 1;
+      const px = bezierPoint(cx, cpx, node.x, pulseT);
+      const py = bezierPoint(cy, cpy, node.y, pulseT);
+      ctx.beginPath();
+      ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(node.color, 0.6);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER — NEURAL CORE
+// ═══════════════════════════════════════════════════════════════════
+function drawCore(time) {
+  ctx.save();
+
+  // Outer glow rings
+  for (let i = 3; i >= 0; i--) {
+    const r = 40 + i * 15 + Math.sin(time * 1.5 + i) * 4;
+    const alpha = 0.04 - i * 0.008;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0,229,255,${alpha})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Rotating inner ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, 28 + Math.sin(time * 2) * 3, 0, Math.PI * 2);
+  const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 35);
+  coreGrad.addColorStop(0, 'rgba(0,229,255,0.3)');
+  coreGrad.addColorStop(0.6, 'rgba(0,229,255,0.08)');
+  coreGrad.addColorStop(1, 'rgba(0,229,255,0)');
+  ctx.fillStyle = coreGrad;
+  ctx.fill();
+
+  // Core center
+  const coreR = 18 + Math.sin(time * 3) * 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
+  const innerGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
+  innerGrad.addColorStop(0, '#ffffff');
+  innerGrad.addColorStop(0.3, '#00e5ff');
+  innerGrad.addColorStop(0.7, 'rgba(0,229,255,0.4)');
+  innerGrad.addColorStop(1, 'rgba(0,229,255,0)');
+  ctx.fillStyle = innerGrad;
+  ctx.fill();
+
+  // Rotating spokes
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(time * 0.3);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * 12, Math.sin(a) * 12);
+    ctx.lineTo(Math.cos(a) * 26, Math.sin(a) * 26);
+    ctx.strokeStyle = 'rgba(0,229,255,0.15)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Label
+  ctx.fillStyle = 'rgba(0,229,255,0.6)';
+  ctx.font = '600 9px "Segoe UI"';
+  ctx.textAlign = 'center';
+  ctx.fillText('NEURAL CORE', cx, cy + 50);
+
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER — LAB NODES
+// ═══════════════════════════════════════════════════════════════════
+function drawNodes(time) {
+  ctx.save();
+  for (const node of nodes) {
+    const pulse = node.active ? Math.sin(time * 4) * 0.15 + 0.85 : 0.4;
+    const r = node.radius;
+
+    // Hexagonal frame
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 - Math.PI / 6;
+      const hr = r + (node.active ? Math.sin(time * 3 + i) * 2 : 0);
+      const hx = node.x + Math.cos(a) * hr;
+      const hy = node.y + Math.sin(a) * hr;
+      i === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+
+    // Fill
+    const nGrad = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, r);
+    nGrad.addColorStop(0, hexToRgba(node.color, 0.15 * pulse / 0.4));
+    nGrad.addColorStop(1, hexToRgba(node.color, 0.02));
+    ctx.fillStyle = nGrad;
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = hexToRgba(node.color, pulse);
+    ctx.lineWidth = node.active ? 2 : 1;
+    ctx.stroke();
+
+    // Processing progress ring
+    if (node.active && node.processProgress > 0) {
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, r + 6, -Math.PI / 2, -Math.PI / 2 + node.processProgress * Math.PI * 2);
+      ctx.strokeStyle = hexToRgba(node.color, 0.7);
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    // Icon
+    ctx.fillStyle = hexToRgba(node.color, pulse + 0.2);
+    ctx.font = '16px "Segoe UI"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(node.icon, node.x, node.y - 2);
+
+    // Label
+    ctx.fillStyle = hexToRgba(node.color, 0.7);
+    ctx.font = '600 8px "Segoe UI"';
+    ctx.textBaseline = 'top';
+    ctx.fillText(node.label, node.x, node.y + r + 8);
+  }
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER — AGENTS
+// ═══════════════════════════════════════════════════════════════════
+function drawAgents(time) {
+  ctx.save();
+  for (const a of agents) {
+    if (a.state === 'dead') continue;
+
+    // Trail
+    for (const t of a.trail) {
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 2, 0, Math.PI * 2);
+      ctx.fillStyle = hexToRgba(a.color, t.alpha * 0.3);
+      ctx.fill();
+    }
+
+    // Agent orb
+    const glow = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, a.size * 3);
+    glow.addColorStop(0, hexToRgba(a.color, a.alpha * 0.8));
+    glow.addColorStop(0.4, hexToRgba(a.color, a.alpha * 0.3));
+    glow.addColorStop(1, hexToRgba(a.color, 0));
+    ctx.beginPath();
+    ctx.arc(a.x, a.y, a.size * 3, 0, Math.PI * 2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+
+    // Core dot
+    ctx.beginPath();
+    ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2);
+    ctx.fillStyle = hexToRgba(a.color, a.alpha);
+    ctx.fill();
+    ctx.strokeStyle = hexToRgba('#ffffff', a.alpha * 0.5);
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+
+    // Name label (only when not too close to other text)
+    if (a.state !== 'idle' && a.state !== 'spawning') {
+      ctx.fillStyle = hexToRgba(a.color, a.alpha * 0.7);
+      ctx.font = '600 8px "Segoe UI"';
+      ctx.textAlign = 'center';
+      ctx.fillText(a.name, a.x, a.y - a.size * 3 - 4);
+    }
+  }
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER — AMBIENT PARTICLES
+// ═══════════════════════════════════════════════════════════════════
+const particles = [];
+for (let i = 0; i < 80; i++) {
+  particles.push({
+    x: Math.random() * 2000, y: Math.random() * 2000,
+    vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12,
+    size: Math.random() * 1.5, alpha: Math.random() * 0.15,
+  });
+}
+
+function drawParticles(dt) {
+  ctx.save();
+  for (const p of particles) {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+    if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(0,229,255,${p.alpha})`;
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// UTILITY
+// ═══════════════════════════════════════════════════════════════════
+function hexToRgba(hex, alpha) {
+  hex = hex.replace('#', '');
+  if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PIPELINE SCENARIO — "Build a full-stack e-commerce app"
+// ═══════════════════════════════════════════════════════════════════
+const PIPELINE_STEPS = [
+  // Phase 1: Parallel data gathering
+  { time: 1.5, action: 'spawn', node: 'ingest', task: 'Parse user requirements & constraints' },
+  { time: 2.5, action: 'spawn', node: 'knowledge', task: 'Search past e-commerce solutions' },
+
+  // Phase 2: Hypothesis + parallel implementation planning
+  { time: 12,  action: 'spawn', node: 'hypothesis', task: 'Plan React + FastAPI architecture' },
+  { time: 14,  action: 'spawn', node: 'hypothesis', task: 'Design database schema (PostgreSQL)' },
+
+  // Phase 3: Parallel implementation
+  { time: 24,  action: 'spawn', node: 'implement', task: 'Generate frontend components (React)' },
+  { time: 25,  action: 'spawn', node: 'implement', task: 'Generate backend API routes (FastAPI)' },
+  { time: 26,  action: 'spawn', node: 'tooling', task: 'Setup Docker + CI/CD pipeline' },
+
+  // Phase 4: Validation
+  { time: 40,  action: 'spawn', node: 'validation', task: 'Run unit tests on API endpoints' },
+  { time: 41,  action: 'spawn', node: 'validation', task: 'Lint & type-check frontend code' },
+
+  // Phase 5: Review + Knowledge Store
+  { time: 52,  action: 'spawn', node: 'review', task: 'Code review diff — check patterns' },
+  { time: 54,  action: 'spawn', node: 'coordination', task: 'Merge results from all agents' },
+
+  // Phase 6: Final knowledge persistence
+  { time: 64,  action: 'spawn', node: 'knowledge', task: 'Store solution patterns for future' },
+  { time: 65,  action: 'spawn', node: 'ingest', task: 'Generate final summary report' },
+
+  // Phase 7: Cleanup stragglers + second wave tools
+  { time: 74,  action: 'spawn', node: 'tooling', task: 'Generate deployment scripts' },
+  { time: 76,  action: 'spawn', node: 'coordination', task: 'Final pipeline status aggregation' },
+
+  // Loop after complete
+  { time: 90,  action: 'reset' },
+];
+
+const STAGE_LABELS = [
+  { time: 0,  label: 'INITIALIZING...', desc: 'CEO analyzing request: "Build a full-stack e-commerce app with authentication, payments, and admin dashboard"' },
+  { time: 1,  label: 'PHASE 1 — DATA GATHERING', desc: 'Spawning parallel agents: one ingests requirements, another searches knowledge base for past solutions' },
+  { time: 12, label: 'PHASE 2 — HYPOTHESIS', desc: 'Architecture planning: React frontend + FastAPI backend + PostgreSQL. Schema design in parallel.' },
+  { time: 24, label: 'PHASE 3 — IMPLEMENTATION', desc: 'Three agents working in parallel: frontend components, backend API routes, and DevOps infrastructure' },
+  { time: 40, label: 'PHASE 4 — VALIDATION', desc: 'Dual validation: unit tests on API endpoints + lint/type-check on frontend code simultaneously' },
+  { time: 52, label: 'PHASE 5 — REVIEW & MERGE', desc: 'Code review agent checks patterns while coordination agent merges all sub-results' },
+  { time: 64, label: 'PHASE 6 — KNOWLEDGE PERSIST', desc: 'Storing successful patterns to knowledge base. Generating summary report for user.' },
+  { time: 74, label: 'PHASE 7 — DEPLOY & CLEANUP', desc: 'Final deployment scripts + pipeline status aggregation. Despawning completed agents.' },
+  { time: 88, label: 'PIPELINE COMPLETE ✓', desc: 'All agents returned to core. 14 sub-tasks executed across 7 phases. Restarting demo...' },
+];
+
+let pipelineTime = 0;
+let stepIndex = 0;
+let stageIndex = 0;
+
+function updatePipeline(dt) {
+  pipelineTime += dt;
+
+  // Check stage labels
+  while (stageIndex < STAGE_LABELS.length - 1 && pipelineTime >= STAGE_LABELS[stageIndex + 1].time) {
+    stageIndex++;
+  }
+  const stage = STAGE_LABELS[stageIndex];
+  document.getElementById('pipelineStage').textContent = stage.label;
+  document.getElementById('taskDescription').textContent = stage.desc;
+
+  // Process pipeline steps
+  while (stepIndex < PIPELINE_STEPS.length && pipelineTime >= PIPELINE_STEPS[stepIndex].time) {
+    const step = PIPELINE_STEPS[stepIndex];
+    if (step.action === 'spawn') {
+      // Check if we need to despawn idle agents to make room
+      const idleAgents = agents.filter(a => a.state === 'idle');
+      if (!canSpawnAgent() && idleAgents.length > 0) {
+        despawnAgent(idleAgents[0]);
+      }
+      spawnAgent(step.node, step.task);
+    } else if (step.action === 'reset') {
+      // Despawn all remaining agents
+      for (const a of agents) {
+        if (a.state !== 'dead') despawnAgent(a);
+      }
+      // Reset pipeline
+      setTimeout(() => {
+        agents = [];
+        agentIdCounter = 0;
+        pipelineTime = 0;
+        stepIndex = 0;
+        stageIndex = 0;
+        usedVram = 0;
+        updateVramUI();
+        addLog('<span style="color:#00e5ff">═══ PIPELINE RESTART ═══</span>');
+      }, 2000);
+    }
+    stepIndex++;
+  }
+
+  // Auto-despawn idle agents after 8 seconds at core (VRAM optimization)
+  for (const a of agents) {
+    if (a.state === 'idle') {
+      a._idleTime = (a._idleTime || 0) + dt;
+      if (a._idleTime > 8) {
+        despawnAgent(a);
+      }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN LOOP
+// ═══════════════════════════════════════════════════════════════════
+let lastTime = 0;
+let elapsed = 0;
+let panelUpdateTimer = 0;
+
+function frame(timestamp) {
+  const dt = Math.min(0.1, (timestamp - lastTime) / 1000);
+  lastTime = timestamp;
+  elapsed += dt;
+
+  // Clear
+  ctx.fillStyle = '#0a0a12';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw layers
+  drawGrid(elapsed);
+  drawConnections(elapsed);
+  drawParticles(dt);
+  drawCore(elapsed);
+  drawNodes(elapsed);
+
+  // Update simulation
+  updatePipeline(dt);
+  updateAgents(dt);
+  drawAgents(elapsed);
+
+  // Update HUD at 4fps (performance)
+  panelUpdateTimer += dt;
+  if (panelUpdateTimer > 0.25) {
+    panelUpdateTimer = 0;
+    updateAgentPanel();
+  }
+
+  requestAnimationFrame(frame);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════
+updateVramUI();
+addLog('<span style="color:#00e5ff">═══ THE MACHINE — BONSAI SWARM DEMO ═══</span>');
+addLog('GPU: 12GB VRAM | Bonsai agents: 1.2GB each | Max concurrent: ~10');
+addLog('Pipeline: "Build full-stack e-commerce app with auth + payments + admin"');
+addLog('<span class="highlight">CEO → routing task to multi-agent parallel pipeline...</span>');
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

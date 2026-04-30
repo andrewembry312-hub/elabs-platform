@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE MACHINE — 3D Isometric Lab v2</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#060610;display:flex;align-items:center;justify-content:center;min-height:100vh;overflow:hidden}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// ═══════════════════════════════════════════════════════════
+//  THE MACHINE — Accurate Isometric Lab Scene v2
+//  Dense, packed room matching concept art reference
+// ═══════════════════════════════════════════════════════════
+
+const cv = document.getElementById('c');
+const X = cv.getContext('2d');
+let W, H, T = 0;
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  X.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ─── Isometric projection ────────────────────────────────
+const COS30 = Math.cos(Math.PI / 6);
+const SIN30 = 0.5;
+let SC, OX, OY;
+
+function iso(x, y, z) {
+  return [OX + (x - y) * COS30 * SC, OY + (x + y) * SIN30 * SC - z * SC];
+}
+
+// ─── Room size ───────────────────────────────────────────
+const RW = 140, RD = 140, RH = 95;
+
+// ─── Colors ──────────────────────────────────────────────
+const C = {
+  floorDark:  '#0c1218', floorLight: '#121a24',
+  wallBack:   '#0a1018', wallLeft:   '#080e14',
+  trim:       '#1a2a3e', trimDim:    '#10182a',
+  metal:      '#0e1620', metalLt:    '#1a2838', metalHi: '#2a3a50',
+  cyan:       '#00ccff', cyanBright: '#44eeff', cyanDim: '#006688',
+  green:      '#22ff66', greenDim:   '#118833',
+  amber:      '#ffaa22', amberDim:   '#886611',
+  purple:     '#aa66ff', purpleDim:  '#553388',
+  pink:       '#ff44aa', pinkDim:    '#882255',
+  yellow:     '#ffdd44', yellowDim:  '#887722',
+  red:        '#ff4444', orange:     '#ff8844',
+  screenBg:   '#020810', screenBdr:  '#0a5580',
+};
+
+// Rainbow palette for bar graphs (matching reference)
+const RAINBOW = [C.cyan, C.green, C.amber, C.purple, C.pink, C.yellow, C.orange, '#44ddaa', '#6688ff', C.red];
+
+// ─── Drawing helpers ─────────────────────────────────────
+function poly(pts, fill, stroke, lw) {
+  X.beginPath();
+  const [sx, sy] = iso(...pts[0]);
+  X.moveTo(sx, sy);
+  for (let i = 1; i < pts.length; i++) { const [px, py] = iso(...pts[i]); X.lineTo(px, py); }
+  X.closePath();
+  if (fill) { X.fillStyle = fill; X.fill(); }
+  if (stroke) { X.strokeStyle = stroke; X.lineWidth = lw || 1; X.stroke(); }
+}
+
+function box(x, y, z, w, d, h, cT, cL, cR, str) {
+  // Top
+  poly([[x,y,z+h],[x+w,y,z+h],[x+w,y+d,z+h],[x,y+d,z+h]], cT, str, 0.5);
+  // Left (y+d face = front-left)
+  poly([[x,y+d,z],[x,y+d,z+h],[x+w,y+d,z+h],[x+w,y+d,z]], cL, str, 0.5);
+  // Right (x+w face = front-right)
+  poly([[x+w,y,z],[x+w,y,z+h],[x+w,y+d,z+h],[x+w,y+d,z]], cR, str, 0.5);
+}
+
+function glow(wx, wy, wz, radius, color, alpha) {
+  const [cx, cy] = iso(wx, wy, wz);
+  const r = radius * SC;
+  const g = X.createRadialGradient(cx, cy, 0, cx, cy, r);
+  g.addColorStop(0, color + (alpha || '22'));
+  g.addColorStop(1, 'transparent');
+  X.fillStyle = g;
+  X.fillRect(cx - r, cy - r, r * 2, r * 2);
+}
+
+// ─── Checkerboard floor ─────────────────────────────────
+function drawFloor() {
+  const ts = 10; // tile size — small for dense grid
+  for (let gx = 0; gx < RW; gx += ts) {
+    for (let gy = 0; gy < RD; gy += ts) {
+      const checker = ((gx / ts + gy / ts) % 2 === 0);
+      poly(
+        [[gx,gy,0],[gx+ts,gy,0],[gx+ts,gy+ts,0],[gx,gy+ts,0]],
+        checker ? C.floorLight : C.floorDark,
+        '#0e1828' + '44', 0.3
+      );
+    }
+  }
+}
+
+// ─── Walls with dense panel detail ──────────────────────
+function drawWalls() {
+  // Back wall
+  poly([[0,0,0],[RW,0,0],[RW,0,RH],[0,0,RH]], C.wallBack);
+  // Left wall
+  poly([[0,0,0],[0,RD,0],[0,RD,RH],[0,0,RH]], C.wallLeft);
+
+  // Dense vertical panel lines — back wall
+  for (let wx = 8; wx < RW; wx += 12) {
+    const [x1, y1] = iso(wx, 0.2, 2);
+    const [x2, y2] = iso(wx, 0.2, RH - 2);
+    X.beginPath(); X.moveTo(x1, y1); X.lineTo(x2, y2);
+    X.strokeStyle = C.trim + '18'; X.lineWidth = 0.4; X.stroke();
+  }
+  // Horizontal
+  for (let wz = 10; wz < RH; wz += 15) {
+    const [x1, y1] = iso(2, 0.2, wz);
+    const [x2, y2] = iso(RW - 2, 0.2, wz);
+    X.beginPath(); X.moveTo(x1, y1); X.lineTo(x2, y2);
+    X.strokeStyle = C.trim + '12'; X.lineWidth = 0.3; X.stroke();
+  }
+  // Left wall panels
+  for (let wy = 8; wy < RD; wy += 14) {
+    const [x1, y1] = iso(0.2, wy, 2);
+    const [x2, y2] = iso(0.2, wy, RH - 2);
+    X.beginPath(); X.moveTo(x1, y1); X.lineTo(x2, y2);
+    X.strokeStyle = C.trim + '14'; X.lineWidth = 0.3; X.stroke();
+  }
+  for (let wz = 10; wz < RH; wz += 15) {
+    const [x1, y1] = iso(0.2, 2, wz);
+    const [x2, y2] = iso(0.2, RD - 2, wz);
+    X.beginPath(); X.moveTo(x1, y1); X.lineTo(x2, y2);
+    X.strokeStyle = C.trim + '10'; X.lineWidth = 0.3; X.stroke();
+  }
+
+  // Ceiling edges
+  const [c1x, c1y] = iso(0, 0, RH);
+  const [c2x, c2y] = iso(RW, 0, RH);
+  const [c3x, c3y] = iso(0, RD, RH);
+  X.beginPath(); X.moveTo(c3x, c3y); X.lineTo(c1x, c1y); X.lineTo(c2x, c2y);
+  X.strokeStyle = C.trim + '60'; X.lineWidth = 1.5; X.stroke();
+}
+
+// ─── Wall-mounted screen (reusable) ────────────────────
+// face='back' → on y=0 wall, face='left' → on x=0 wall
+function wallScreen(face, pos, dim, content) {
+  const { x, y, z } = pos;
+  const { w, h } = dim;
+
+  let pts, glowPt;
+  if (face === 'back') {
+    pts = [[x, 0.8, z], [x + w, 0.8, z], [x + w, 0.8, z + h], [x, 0.8, z + h]];
+    glowPt = [x + w/2, 5, z + h/2];
+  } else {
+    pts = [[0.8, x, z], [0.8, x + w, z], [0.8, x + w, z + h], [0.8, x, z + h]];
+    glowPt = [5, x + w/2, z + h/2];
+  }
+
+  // Screen bg
+  poly(pts, C.screenBg, C.screenBdr + '55', 0.8);
+
+  // Scanlines
+  for (let sl = 1; sl < h; sl += 1.5) {
+    let p1, p2;
+    if (face === 'back') {
+      p1 = iso(x + 0.5, 0.6, z + sl);
+      p2 = iso(x + w - 0.5, 0.6, z + sl);
+    } else {
+      p1 = iso(0.6, x + 0.5, z + sl);
+      p2 = iso(0.6, x + w - 0.5, z + sl);
+    }
+    X.beginPath(); X.moveTo(p1[0], p1[1]); X.lineTo(p2[0], p2[1]);
+    X.strokeStyle = C.cyan + '06'; X.lineWidth = 0.4; X.stroke();
+  }
+
+  // Content
+  if (content === 'bars') drawScreenBars(face, pos, dim);
+  else if (content === 'line') drawScreenLine(face, pos, dim);
+  else if (content === 'wave') drawScreenWave(face, pos, dim);
+  else if (content === 'code') drawScreenCode(face, pos, dim);
+  else if (content === 'grid') drawScreenGrid(face, pos, dim);
+  else if (content === 'map') drawScreenMap(face, pos, dim);
+
+  // Screen border glow
+  glow(...glowPt, Math.max(w, h) * 0.8, content === 'bars' ? C.cyan : content === 'line' ? C.green : C.cyan, '0c');
+
+  // Corner dots
+  pts.forEach(p => {
+    const [px, py] = iso(...p);
+    X.beginPath(); X.arc(px, py, 1.5, 0, Math.PI * 2);
+    X.fillStyle = C.screenBdr + '88'; X.fill();
+  });
+}
+
+function drawScreenBars(face, pos, dim) {
+  const { x, z } = pos;
+  const { w, h } = dim;
+  const numBars = Math.floor(w / 2.5);
+  const barW = (w - 3) / numBars;
+
+  for (let b = 0; b < numBars; b++) {
+    const val = (Math.sin(T * 0.002 + b * 0.6) * 0.3 + 0.65);
+    const bh = val * (h - 4);
+    const bx = x + 1.5 + b * barW;
+    const bz = z + 2;
+    const col = RAINBOW[b % RAINBOW.length];
+
+    let pts;
+    if (face === 'back') {
+      pts = [[bx, 0.5, bz], [bx + barW * 0.75, 0.5, bz], [bx + barW * 0.75, 0.5, bz + bh], [bx, 0.5, bz + bh]];
+    } else {
+      pts = [[0.5, bx, bz], [0.5, bx + barW * 0.75, bz], [0.5, bx + barW * 0.75, bz + bh], [0.5, bx, bz + bh]];
+    }
+    poly(pts, col + '99');
+
+    // Bar top glow dot
+    const topPt = face === 'back' ? iso(bx + barW * 0.375, 0.4, bz + bh) : iso(0.4, bx + barW * 0.375, bz + bh);
+    X.beginPath(); X.arc(topPt[0], topPt[1], 1.2 * SC, 0, Math.PI * 2);
+    X.fillStyle = col; X.shadowColor = col; X.shadowBlur = 4; X.fill(); X.shadowBlur = 0;
+  }
+}
+
+function drawScreenLine(face, pos, dim) {
+  const { x, z } = pos;
+  const { w, h } = dim;
+  const colors = [C.cyan, C.green, C.amber];
+
+  colors.forEach((col, ci) => {
+    X.beginPath();
+    const pts = 20;
+    for (let p = 0; p < pts; p++) {
+      const px = x + 1.5 + (w - 3) * (p / (pts - 1));
+      const val = Math.sin(T * 0.003 * (ci + 1) + p * 0.5 + ci * 2) * 0.3 + 0.5;
+      const pz = z + 2 + val * (h - 4);
+      const pt = face === 'back' ? iso(px, 0.4, pz) : iso(0.4, px, pz);
+      p === 0 ? X.moveTo(pt[0], pt[1]) : X.lineTo(pt[0], pt[1]);
+    }
+    X.strokeStyle = col + 'cc';
+    X.lineWidth = 1.2;
+    X.shadowColor = col;
+    X.shadowBlur = 6;
+    X.stroke();
+    X.shadowBlur = 0;
+  });
+}
+
+function drawScreenWave(face, pos, dim) {
+  const { x, z } = pos;
+  const { w, h } = dim;
+
+  for (let wl = 0; wl < 4; wl++) {
+    X.beginPath();
+    const col = [C.cyan, C.green, C.amber, C.purple][wl];
+    const pts = 25;
+    for (let p = 0; p < pts; p++) {
+      const px = x + 1 + (w - 2) * (p / (pts - 1));
+      const val = Math.sin(T * 0.004 * (wl + 1) + p * 0.6 + wl * 1.5) * 0.15;
+      const pz = z + h * (0.25 + wl * 0.17) + val * h;
+      const pt = face === 'back' ? iso(px, 0.4, pz) : iso(0.4, px, pz);
+      p === 0 ? X.moveTo(pt[0], pt[1]) : X.lineTo(pt[0], pt[1]);
+    }
+    X.strokeStyle = col + '99';
+    X.lineWidth = 1;
+    X.shadowColor = col; X.shadowBlur = 3; X.stroke(); X.shadowBlur = 0;
+  }
+}
+
+function drawScreenCode(face, pos, dim) {
+  const { x, z } = pos;
+  const { w, h } = dim;
+
+  for (let r = 0; r < Math.floor(h / 2.5); r++) {
+    const rz = z + 1.5 + r * 2.5;
+    const rw = (Math.sin(T * 0.001 + r * 1.1) * 0.25 + 0.55) * (w - 3);
+    const col = r % 3 === 0 ? C.green : r % 3 === 1 ? C.cyan : C.purple;
+    let p1, p2;
+    if (face === 'back') {
+      p1 = iso(x + 1.5, 0.4, rz); p2 = iso(x + 1.5 + rw, 0.4, rz);
+    } else {
+      p1 = iso(0.4, x + 1.5, rz); p2 = iso(0.4, x + 1.5 + rw, rz);
+    }
+    X.beginPath(); X.moveTo(p1[0], p1[1]); X.lineTo(p2[0], p2[1]);
+    X.strokeStyle = col + '55'; X.lineWidth = 1.5; X.stroke();
+  }
+}
+
+function drawScreenGrid(face, pos, dim) {
+  const { x, z } = pos;
+  const { w, h } = dim;
+
+  // Small colored rectangles grid
+  const cols = 6, rows = 5;
+  const cw = (w - 3) / cols, ch = (h - 3) / rows;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const col = RAINBOW[(r * cols + c) % RAINBOW.length] + '66';
+      const bx = x + 1.5 + c * cw, bz = z + 1.5 + r * ch;
+      let pts;
+      if (face === 'back') {
+        pts = [[bx, 0.5, bz], [bx+cw*0.85, 0.5, bz], [bx+cw*0.85, 0.5, bz+ch*0.85], [bx, 0.5, bz+ch*0.85]];
+      } else {
+        pts = [[0.5, bx, bz], [0.5, bx+cw*0.85, bz], [0.5, bx+cw*0.85, bz+ch*0.85], [0.5, bx, bz+ch*0.85]];
+      }
+      const bright = Math.sin(T*0.002 + r + c*0.5)*0.3+0.7;
+      X.globalAlpha = bright;
+      poly(pts, col);
+      X.globalAlpha = 1;
+    }
+  }
+}
+
+function drawScreenMap(face, pos, dim) {
+  const { x, z } = pos;
+  const { w, h } = dim;
+
+  // World map / network graph style
+  const nodes = [];
+  for (let i = 0; i < 12; i++) {
+    nodes.push({
+      nx: x + 2 + Math.random() * (w - 4),
+      nz: z + 2 + Math.random() * (h - 4),
+    });
+  }
+  // Connections
+  X.globalAlpha = 0.4;
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      if (Math.random() < 0.3) {
+        const p1 = face === 'back' ? iso(nodes[i].nx, 0.4, nodes[i].nz) : iso(0.4, nodes[i].nx, nodes[i].nz);
+        const p2 = face === 'back' ? iso(nodes[j].nx, 0.4, nodes[j].nz) : iso(0.4, nodes[j].nx, nodes[j].nz);
+        X.beginPath(); X.moveTo(p1[0], p1[1]); X.lineTo(p2[0], p2[1]);
+        X.strokeStyle = C.cyan + '44'; X.lineWidth = 0.5; X.stroke();
+      }
+    }
+  }
+  X.globalAlpha = 1;
+  // Nodes
+  nodes.forEach((n, i) => {
+    const pt = face === 'back' ? iso(n.nx, 0.3, n.nz) : iso(0.3, n.nx, n.nz);
+    X.beginPath(); X.arc(pt[0], pt[1], 2 * SC, 0, Math.PI * 2);
+    X.fillStyle = RAINBOW[i % RAINBOW.length];
+    X.shadowColor = RAINBOW[i % RAINBOW.length]; X.shadowBlur = 4;
+    X.fill(); X.shadowBlur = 0;
+  });
+}
+
+// ─── Central data tower (the tall glowing cylinder) ─────
+function drawDataTower(tx, ty) {
+  const tw = 16, td = 16, towerH = 65;
+  const cx = tx + tw/2, cy = ty + td/2;
+
+  // Base platform
+  box(tx - 4, ty - 4, 0, tw + 8, td + 8, 4, C.metalLt, C.metal, C.metal + 'cc', C.trim + '44');
+
+  // Base platform glow ring
+  const [bcx, bcy] = iso(cx, cy, 4.5);
+  X.beginPath(); X.ellipse(bcx, bcy, 14 * SC, 7 * SC, 0, 0, Math.PI * 2);
+  X.strokeStyle = C.cyan + '44'; X.lineWidth = 1.5; X.stroke();
+  X.beginPath(); X.ellipse(bcx, bcy, 16 * SC, 8 * SC, 0, 0, Math.PI * 2);
+  X.strokeStyle = C.cyan + '22'; X.lineWidth = 1; X.stroke();
+
+  // Tower segments (stacked cylinders approximated as octagonal prisms)
+  const segments = 8;
+  const segH = towerH / segments;
+
+  for (let s = 0; s < segments; s++) {
+    const sz = 5 + s * segH;
+    const pulse = Math.sin(T * 0.003 + s * 0.8) * 0.15 + 0.85;
+    const segW = tw * (0.85 + Math.sin(s * 0.5) * 0.1);
+    const ox = cx - segW/2, oy = cy - segW/2;
+
+    // Segment box
+    const topCol = `rgba(0, ${Math.floor(140 + pulse * 60)}, ${Math.floor(180 + pulse * 75)}, ${0.25 + pulse * 0.15})`;
+    const leftCol = `rgba(0, ${Math.floor(80 + pulse * 40)}, ${Math.floor(120 + pulse * 50)}, ${0.3 + pulse * 0.1})`;
+    const rightCol = `rgba(0, ${Math.floor(100 + pulse * 50)}, ${Math.floor(150 + pulse * 60)}, ${0.25 + pulse * 0.1})`;
+
+    box(ox, oy, sz, segW, segW, segH - 1, topCol, leftCol, rightCol);
+
+    // Ring between segments
+    const [rcx, rcy] = iso(cx, cy, sz);
+    X.beginPath(); X.ellipse(rcx, rcy, (segW/2 + 1) * SC, (segW/2 + 1) * SC * 0.5, 0, 0, Math.PI * 2);
+    X.strokeStyle = C.cyanBright + (s % 2 === 0 ? '55' : '33');
+    X.lineWidth = 1;
+    X.stroke();
+
+    // LED dots on this segment
+    for (let led = 0; led < 4; led++) {
+      const angle = T * 0.002 + led * Math.PI/2 + s * 0.3;
+      const lx = cx + Math.cos(angle) * (segW/2 + 0.5);
+      const ly = cy + Math.sin(angle) * (segW/2 + 0.5);
+      const lz = sz + segH/2;
+      const [lpx, lpy] = iso(lx, ly, lz);
+      const ledPhase = Math.sin(T * 0.006 + s + led) > 0;
+      if (ledPhase) {
+        X.beginPath(); X.arc(lpx, lpy, 1.5 * SC, 0, Math.PI * 2);
+        X.fillStyle = C.cyanBright;
+        X.shadowColor = C.cyan; X.shadowBlur = 6; X.fill(); X.shadowBlur = 0;
+      }
+    }
+  }
+
+  // Tower top glow
+  const [topX, topY] = iso(cx, cy, 5 + towerH);
+  const topGrad = X.createRadialGradient(topX, topY, 0, topX, topY, 30 * SC);
+  topGrad.addColorStop(0, C.cyanBright + '44');
+  topGrad.addColorStop(0.5, C.cyan + '15');
+  topGrad.addColorStop(1, 'transparent');
+  X.fillStyle = topGrad;
+  X.fillRect(topX - 40*SC, topY - 40*SC, 80*SC, 80*SC);
+
+  // Vertical light beam above tower
+  X.save();
+  X.globalAlpha = 0.15 + Math.sin(T * 0.002) * 0.06;
+  const [beamBot] = [iso(cx, cy, 5 + towerH)];
+  const [beamTop] = [iso(cx, cy, 5 + towerH + 25)];
+  const beamGrad = X.createLinearGradient(beamBot[0], beamBot[1], beamTop[0], beamTop[1]);
+  beamGrad.addColorStop(0, C.cyanBright);
+  beamGrad.addColorStop(1, 'transparent');
+  X.beginPath();
+  X.moveTo(beamBot[0] - 6*SC, beamBot[1]);
+  X.lineTo(beamTop[0] - 2*SC, beamTop[1]);
+  X.lineTo(beamTop[0] + 2*SC, beamTop[1]);
+  X.lineTo(beamBot[0] + 6*SC, beamBot[1]);
+  X.closePath();
+  X.fillStyle = beamGrad; X.fill();
+  X.restore();
+
+  // Core glow around entire tower
+  glow(cx, cy, 5 + towerH/2, towerH * 0.5, C.cyan, '0a');
+
+  // Orbiting particles around tower
+  for (let p = 0; p < 12; p++) {
+    const a = T * 0.003 + p * (Math.PI * 2 / 12);
+    const orbitR = tw/2 + 5 + Math.sin(T * 0.002 + p) * 3;
+    const pz = 8 + (p / 12) * towerH + Math.sin(T * 0.004 + p*2) * 5;
+    const px = cx + Math.cos(a) * orbitR;
+    const py = cy + Math.sin(a) * orbitR;
+    const [spx, spy] = iso(px, py, pz);
+    const alpha = Math.sin(T * 0.005 + p) * 0.3 + 0.6;
+    X.globalAlpha = alpha;
+    X.beginPath(); X.arc(spx, spy, 1.8 * SC, 0, Math.PI * 2);
+    X.fillStyle = p % 3 === 0 ? C.cyan : p % 3 === 1 ? C.green : C.amber;
+    X.shadowColor = C.cyan; X.shadowBlur = 5; X.fill(); X.shadowBlur = 0;
+    X.globalAlpha = 1;
+  }
+}
+
+// ─── Server rack ────────────────────────────────────────
+function serverRack(rx, ry, rw, rd, rh) {
+  box(rx, ry, 0, rw, rd, rh, C.metalLt, C.metal, C.metal + 'dd', C.trim + '33');
+
+  // Server units
+  const unitH = rh / 7;
+  for (let u = 0; u < 7; u++) {
+    const uz = 1 + u * unitH;
+    // Unit front face (right face in iso)
+    poly(
+      [[rx+rw, ry, uz+0.5], [rx+rw, ry+rd, uz+0.5], [rx+rw, ry+rd, uz+unitH-0.5], [rx+rw, ry, uz+unitH-0.5]],
+      '#060c14', C.trim + '22', 0.3
+    );
+    // LEDs
+    for (let l = 0; l < 4; l++) {
+      const ly = ry + 2 + l * (rd-4)/3;
+      const [lx, lly] = iso(rx + rw + 0.3, ly, uz + unitH/2);
+      const phase = Math.sin(T * 0.005 + u * 0.9 + l * 1.4);
+      const lc = phase > 0.2 ? C.cyan : phase > -0.3 ? C.green : C.amber;
+      X.beginPath(); X.arc(lx, lly, 1 * SC, 0, Math.PI * 2);
+      X.fillStyle = lc; X.shadowColor = lc; X.shadowBlur = 4; X.fill(); X.shadowBlur = 0;
+    }
+  }
+}
+
+// ─── Desk with monitor ──────────────────────────────────
+function desk(dx, dy, dw, dd, facing) {
+  const dh = 16;
+  box(dx, dy, 0, dw, dd, dh, C.metalLt + 'cc', C.metal, C.metal + 'bb', C.trim + '22');
+
+  // Legs (thin)
+  box(dx+1, dy+1, 0, 1.5, 1.5, dh-1, C.metal, C.metal, C.metal);
+  box(dx+dw-2.5, dy+1, 0, 1.5, 1.5, dh-1, C.metal, C.metal, C.metal);
+  box(dx+1, dy+dd-2.5, 0, 1.5, 1.5, dh-1, C.metal, C.metal, C.metal);
+  box(dx+dw-2.5, dy+dd-2.5, 0, 1.5, 1.5, dh-1, C.metal, C.metal, C.metal);
+
+  // Monitor
+  const mw = dw * 0.7, mh = 14, md = 2;
+  const mx = dx + (dw - mw)/2, my = dy + 2;
+  // Stand
+  box(mx + mw/2 - 1.5, my + dd*0.3, dh, 3, 3, 4, C.metal, C.metal, C.metal);
+  // Screen
+  box(mx, my + 1, dh + 4, mw, md, mh, C.metal, C.screenBg, '#011520', C.screenBdr + '44');
+
+  // Mini graph on screen face
+  for (let b = 0; b < 5; b++) {
+    const bh = (Math.sin(T * 0.003 + b * 1.1 + dx) * 0.25 + 0.6) * mh * 0.6;
+    const bx = mx + 1.5 + b * (mw-3)/5;
+    const col = RAINBOW[b % RAINBOW.length];
+    poly([[bx, my+md+1, dh+5], [bx+2, my+md+1, dh+5], [bx+2, my+md+1, dh+5+bh], [bx, my+md+1, dh+5+bh]], col + '88');
+  }
+
+  // Screen glow
+  const [sgx, sgy] = iso(mx + mw/2, my + md + 2, dh + 4 + mh/2);
+  const sg = X.createRadialGradient(sgx, sgy, 0, sgx, sgy, 15 * SC);
+  sg.addColorStop(0, C.cyan + '12');
+  sg.addColorStop(1, 'transparent');
+  X.fillStyle = sg;
+  X.fillRect(sgx - 20*SC, sgy - 20*SC, 40*SC, 40*SC);
+
+  // Keyboard
+  box(dx + dw*0.2, dy + dd*0.55, dh, dw*0.5, dd*0.25, 0.8, C.metal + 'dd', C.metal, C.metal);
+}
+
+// ─── Chair ──────────────────────────────────────────────
+function chair(cx, cy) {
+  // Base
+  box(cx, cy, 0, 6, 6, 2, C.metal, C.metal, C.metal);
+  // Pole
+  box(cx+2.5, cy+2.5, 2, 1.5, 1.5, 10, C.metal, C.metal, C.metal);
+  // Seat
+  box(cx-1, cy-1, 12, 8, 8, 2, C.metalLt, '#0c1520', '#0c1520');
+  // Backrest
+  box(cx, cy-1, 14, 1.5, 8, 10, C.metalLt + '88', '#0a1018', '#0a1018');
+}
+
+// ─── Small floor equipment ──────────────────────────────
+function smallBox(sx, sy, sw, sd, sh, col) {
+  box(sx, sy, 0, sw, sd, sh, col + 'aa', col + '77', col + '88', C.trim + '22');
+}
+
+function crate(sx, sy) {
+  smallBox(sx, sy, 8, 8, 6, C.metal);
+  // Top detail
+  const [tx, ty] = iso(sx+4, sy+4, 6.5);
+  X.beginPath(); X.arc(tx, ty, 2*SC, 0, Math.PI*2);
+  X.fillStyle = C.trimDim; X.fill();
+}
+
+// ─── Colorful shelf unit ────────────────────────────────
+function colorShelf(sx, sy, sw, sd, sh) {
+  box(sx, sy, 0, sw, sd, sh, C.metalLt, C.metal, C.metal + 'cc', C.trim + '33');
+
+  const layers = 5;
+  const layerH = sh / layers;
+  for (let l = 0; l < layers; l++) {
+    const lz = l * layerH + 2;
+    // Shelf plate
+    box(sx+0.5, sy+0.5, lz + layerH - 1.5, sw-1, sd-1, 0.8, C.trim + '44', C.metal, C.metal);
+    // Items
+    for (let i = 0; i < 3; i++) {
+      const ix = sx + 1.5 + i * (sw-3)/3;
+      const ih = layerH * 0.5 + Math.sin(l + i) * 2;
+      const col = RAINBOW[(l * 3 + i) % RAINBOW.length];
+      box(ix, sy + 1, lz, (sw-4)/3 * 0.8, sd - 2, ih, col + '44', col + '33', col + '38');
+    }
+  }
+}
+
+// ─── Floor cables ───────────────────────────────────────
+function drawCables() {
+  const cables = [
+    { pts: [[15,30,0.3],[25,40,0.3],[40,50,0.3],[55,55,0.3],[62,60,0.3]], col: C.cyan + '20' },
+    { pts: [[20,10,0.3],[30,20,0.3],[45,30,0.3],[60,35,0.3],[68,60,0.3],[70,75,0.3]], col: C.green + '18' },
+    { pts: [[100,10,0.3],[95,25,0.3],[88,45,0.3],[85,65,0.3],[90,80,0.3]], col: C.purple + '15' },
+    { pts: [[60,5,0.3],[65,25,0.3],[67,45,0.3],[65,60,0.3]], col: C.amber + '12' },
+  ];
+  cables.forEach(cable => {
+    if (cable.pts.length < 2) return;
+    X.beginPath();
+    const [sx, sy] = iso(...cable.pts[0]);
+    X.moveTo(sx, sy);
+    for (let i = 1; i < cable.pts.length; i++) {
+      const [px, py] = iso(...cable.pts[i]);
+      X.lineTo(px, py);
+    }
+    X.strokeStyle = cable.col; X.lineWidth = 2; X.lineCap = 'round'; X.stroke();
+  });
+}
+
+// ─── Ceiling lights ─────────────────────────────────────
+function drawCeilingLights() {
+  const lights = [
+    { x: 30, y: 25 }, { x: 80, y: 30 }, { x: 30, y: 75 }, { x: 80, y: 80 },
+  ];
+
+  lights.forEach(l => {
+    // Light cone (volumetric)
+    const [top] = [iso(l.x, l.y, RH)];
+    const [bot] = [iso(l.x, l.y, 0)];
+    const coneGrad = X.createLinearGradient(top[0], top[1], bot[0], bot[1]);
+    coneGrad.addColorStop(0, C.cyanDim + '12');
+    coneGrad.addColorStop(0.6, C.cyanDim + '04');
+    coneGrad.addColorStop(1, 'transparent');
+
+    X.save();
+    X.globalAlpha = 0.35 + Math.sin(T * 0.0015 + l.x) * 0.08;
+    const spread = 18;
+    const [tl] = [iso(l.x - 3, l.y, RH)];
+    const [tr] = [iso(l.x + 3, l.y, RH)];
+    const [bl] = [iso(l.x - spread, l.y, 0)];
+    const [br] = [iso(l.x + spread, l.y, 0)];
+    X.beginPath();
+    X.moveTo(tl[0], tl[1]); X.lineTo(bl[0], bl[1]);
+    X.lineTo(br[0], br[1]); X.lineTo(tr[0], tr[1]);
+    X.closePath();
+    X.fillStyle = coneGrad; X.fill();
+    X.restore();
+  });
+}
+
+// ─── Floating ambient particles ─────────────────────────
+let particles = [];
+function initParticles() {
+  particles = [];
+  for (let i = 0; i < 60; i++) {
+    particles.push({
+      x: 5 + Math.random() * (RW - 10),
+      y: 5 + Math.random() * (RD - 10),
+      z: 5 + Math.random() * (RH - 10),
+      vx: (Math.random() - 0.5) * 0.12,
+      vy: (Math.random() - 0.5) * 0.12,
+      vz: (Math.random() - 0.5) * 0.08,
+      size: 0.8 + Math.random() * 1.8,
+      color: RAINBOW[Math.floor(Math.random() * RAINBOW.length)],
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+}
+initParticles();
+
+function drawParticles() {
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.z += p.vz;
+    if (p.x < 3 || p.x > RW - 3) p.vx *= -1;
+    if (p.y < 3 || p.y > RD - 3) p.vy *= -1;
+    if (p.z < 3 || p.z > RH - 3) p.vz *= -1;
+
+    const alpha = Math.sin(T * 0.003 + p.phase) * 0.3 + 0.5;
+    const [sx, sy] = iso(p.x, p.y, p.z);
+    X.globalAlpha = alpha;
+    X.beginPath(); X.arc(sx, sy, p.size * SC, 0, Math.PI * 2);
+    X.fillStyle = p.color;
+    X.shadowColor = p.color; X.shadowBlur = 3; X.fill(); X.shadowBlur = 0;
+    X.globalAlpha = 1;
+  });
+}
+
+// ─── Hexagonal frame ────────────────────────────────────
+function hexPath(r) {
+  const cx = W / 2, cy = H / 2;
+  X.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 6 + i * Math.PI / 3;
+    const px = cx + r * Math.cos(a);
+    const py = cy + r * Math.sin(a);
+    i === 0 ? X.moveTo(px, py) : X.lineTo(px, py);
+  }
+  X.closePath();
+}
+
+function drawHexFrame() {
+  const r = Math.min(W, H) * 0.46;
+  X.save();
+  hexPath(r);
+  X.clip();
+  return r;
+}
+
+function drawHexBorder(r) {
+  const cx = W / 2, cy = H / 2;
+
+  // Outer glow
+  X.save();
+  hexPath(r);
+  X.shadowColor = C.cyan;
+  X.shadowBlur = 40 + Math.sin(T * 0.002) * 12;
+  X.strokeStyle = C.cyanDim + '88';
+  X.lineWidth = 3;
+  X.stroke();
+  X.restore();
+
+  // Dark border
+  hexPath(r);
+  X.strokeStyle = '#0e1a2a';
+  X.lineWidth = 10;
+  X.stroke();
+
+  // Inner metallic
+  hexPath(r);
+  X.strokeStyle = '#1e3048';
+  X.lineWidth = 4;
+  X.stroke();
+
+  // Bright edge
+  hexPath(r);
+  X.strokeStyle = C.cyan + '33';
+  X.lineWidth = 2;
+  X.stroke();
+
+  // Corner bolts
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 6 + i * Math.PI / 3;
+    const px = cx + r * Math.cos(a);
+    const py = cy + r * Math.sin(a);
+    X.beginPath(); X.arc(px, py, 6, 0, Math.PI * 2);
+    X.fillStyle = '#1e3048'; X.fill();
+    X.beginPath(); X.arc(px, py, 3, 0, Math.PI * 2);
+    X.fillStyle = '#0e1a2a'; X.fill();
+    X.beginPath(); X.arc(px, py, 1.5, 0, Math.PI * 2);
+    X.fillStyle = C.cyanDim + '66'; X.fill();
+  }
+
+  // Name plate
+  const plateW = 200, plateH = 30;
+  const plateX = cx - plateW/2, plateY = cy - r - 24;
+  X.fillStyle = '#0a1520';
+  X.strokeStyle = '#1e3048';
+  X.lineWidth = 2;
+  rrect(plateX, plateY, plateW, plateH, 5);
+  X.fill(); X.stroke();
+  // Bottom accent
+  X.fillStyle = C.cyan + '33';
+  X.fillRect(plateX + 15, plateY + plateH - 2, plateW - 30, 1);
+  // Text
+  X.font = '700 13px system-ui';
+  X.fillStyle = '#8ab4d8';
+  X.textAlign = 'center'; X.textBaseline = 'middle';
+  X.fillText('DATA INGEST LAB', cx, plateY + plateH/2);
+  X.textAlign = 'left';
+}
+
+function rrect(x, y, w, h, r) {
+  X.beginPath();
+  X.moveTo(x+r,y); X.lineTo(x+w-r,y); X.arcTo(x+w,y,x+w,y+r,r);
+  X.lineTo(x+w,y+h-r); X.arcTo(x+w,y+h,x+w-r,y+h,r);
+  X.lineTo(x+r,y+h); X.arcTo(x,y+h,x,y+h-r,r);
+  X.lineTo(x,y+r); X.arcTo(x,y,x+r,y,r); X.closePath();
+}
+
+// ─── MAIN RENDER ────────────────────────────────────────
+function render() {
+  T = performance.now();
+  SC = Math.min(W, H) * 0.0026;
+  OX = W / 2 + 5;
+  OY = H / 2 + 45;
+
+  X.clearRect(0, 0, W, H);
+
+  // Background
+  const bg = X.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.7);
+  bg.addColorStop(0, '#0a1020');
+  bg.addColorStop(1, '#040608');
+  X.fillStyle = bg;
+  X.fillRect(0, 0, W, H);
+
+  // Hex clip
+  X.save();
+  const hexR = drawHexFrame();
+
+  // ── Scene (painter's algorithm: back to front) ──
+
+  // Ceiling lights first (behind everything)
+  drawCeilingLights();
+
+  // Walls
+  drawWalls();
+
+  // ── BACK WALL SCREENS (dense, covering most of the wall) ──
+  // Top row large screens
+  wallScreen('back', {x:3, y:0, z:55}, {w:35, h:30}, 'line');     // Large line graph top-left
+  wallScreen('back', {x:42, y:0, z:48}, {w:50, h:38}, 'bars');    // Big center bar graph
+  wallScreen('back', {x:96, y:0, z:55}, {w:35, h:30}, 'wave');    // Waveform top-right
+
+  // Bottom row screens
+  wallScreen('back', {x:5, y:0, z:22}, {w:28, h:28}, 'code');     // Code/data bottom-left
+  wallScreen('back', {x:36, y:0, z:20}, {w:22, h:24}, 'grid');    // Grid of colored tiles
+  wallScreen('back', {x:62, y:0, z:18}, {w:30, h:28}, 'bars');    // More bars
+  wallScreen('back', {x:96, y:0, z:22}, {w:35, h:28}, 'map');     // Network graph
+
+  // ── LEFT WALL SCREENS ──
+  wallScreen('left', {x:5, y:0, z:50}, {w:30, h:32}, 'line');     // Large line graph
+  wallScreen('left', {x:40, y:0, z:50}, {w:28, h:30}, 'bars');    // Bars mid-wall
+  wallScreen('left', {x:72, y:0, z:52}, {w:30, h:28}, 'code');    // Code right
+  wallScreen('left', {x:8, y:0, z:18}, {w:25, h:26}, 'grid');     // Colored grid bottom-left
+  wallScreen('left', {x:38, y:0, z:16}, {w:28, h:28}, 'wave');    // Waveform bottom-mid
+  wallScreen('left', {x:70, y:0, z:20}, {w:32, h:25}, 'bars');    // Bars bottom-right
+
+  // Floor
+  drawFloor();
+  drawCables();
+
+  // ── BACK ROW OBJECTS (low y values = far from camera) ──
+  
+  // Server racks along back-left
+  serverRack(3, 8, 12, 14, 50);
+  serverRack(3, 26, 12, 14, 45);
+
+  // Shelf along back-right
+  colorShelf(110, 5, 14, 18, 50);
+  colorShelf(110, 28, 14, 15, 40);
+
+  // ── MID ROW ──
+
+  // Desk with workstation top-left area
+  desk(22, 30, 28, 16);
+  chair(24, 48);
+
+  // === CENTRAL DATA TOWER (the hero element) ===
+  drawDataTower(58, 52);
+
+  // Desk right side
+  desk(90, 50, 30, 16);
+  chair(95, 68);
+
+  // ── FRONT ROW (high y = close to camera) ──
+
+  // Floor-level equipment and crates
+  smallBox(8, 80, 10, 8, 8, C.metalLt);
+  smallBox(8, 92, 8, 10, 5, C.metal);
+  crate(22, 95);
+
+  // Another desk front-left
+  desk(30, 80, 26, 14);
+  chair(34, 96);
+
+  // Floor device / UPS unit
+  smallBox(65, 90, 12, 10, 10, C.metal);
+  // LEDs on it
+  for (let i = 0; i < 3; i++) {
+    const [lx, ly] = iso(65 + 12.3, 91 + i*3, 5);
+    X.beginPath(); X.arc(lx, ly, 1*SC, 0, Math.PI*2);
+    const p = Math.sin(T*0.004 + i*2);
+    X.fillStyle = p > 0 ? C.green : C.amber;
+    X.shadowColor = p > 0 ? C.green : C.amber; X.shadowBlur = 3; X.fill(); X.shadowBlur = 0;
+  }
+
+  // Small equipment right side
+  smallBox(105, 80, 10, 12, 14, C.metal);
+  smallBox(118, 85, 8, 8, 8, C.metalLt);
+  crate(118, 96);
+
+  // Server rack front-right
+  serverRack(120, 65, 10, 12, 42);
+
+  // More crates scattered
+  crate(50, 100);
+  smallBox(80, 100, 6, 8, 4, C.metal);
+
+  // ── Particles (on top of room interior) ──
+  drawParticles();
+
+  X.restore(); // un-clip hex
+
+  // Hex border (on top of everything)
+  drawHexBorder(hexR);
+
+  requestAnimationFrame(render);
+}
+
+render();
+</script>
+</body>
+</html>

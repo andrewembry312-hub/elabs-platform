@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Backend Comparison — E-Labs Copilot vs E-Labs Enterprise</title>
+  <style>
+    :root {
+      --bg:      #0a0e14;
+      --panel:   #111820;
+      --border:  #1e2f42;
+      --accent:  #00d4ff;
+      --green:   #00ff88;
+      --amber:   #ffaa00;
+      --red:     #ff4455;
+      --text:    #c8d8e8;
+      --sub:     #5a7a9a;
+      --r:       8px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── TOP BAR ── */
+    .topbar { display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .topbar .logo { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--accent); }
+    .topbar h1 { font-size: 14px; font-weight: 600; }
+    .topbar .spacer { flex: 1; }
+
+    /* ── INPUT ZONE ── */
+    .input-zone { padding: 16px 20px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+    .input-row { display: flex; gap: 10px; align-items: flex-end; }
+    textarea {
+      flex: 1; background: #060c14; border: 1px solid var(--border); border-radius: var(--r);
+      color: var(--text); padding: 10px 12px; font-size: 13px; font-family: inherit;
+      resize: vertical; min-height: 60px; max-height: 200px;
+    }
+    textarea:focus { outline: none; border-color: var(--accent); }
+    .btn {
+      padding: 10px 20px; border-radius: var(--r); border: none; cursor: pointer;
+      font-size: 12px; font-weight: 700; letter-spacing: .5px; transition: opacity .15s;
+      flex-shrink: 0;
+    }
+    .btn:disabled { opacity: .35; cursor: default; }
+    .btn.send { background: var(--accent); color: #001a2a; }
+    .btn.clear { background: #1e2f42; color: var(--sub); }
+    .config-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--sub); }
+    .config-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    .config-row select, .config-row input[type=text] {
+      background: #060c14; border: 1px solid var(--border); border-radius: 4px;
+      color: var(--text); padding: 4px 8px; font-size: 12px;
+    }
+    .run-count { color: var(--sub); font-size: 11px; margin-left: auto; }
+
+    /* ── COLUMNS ── */
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); flex: 1; min-height: 0; }
+    .col { background: var(--bg); display: flex; flex-direction: column; overflow: hidden; }
+    .col-head {
+      display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+      background: var(--panel); border-bottom: 1px solid var(--border);
+      font-size: 12px; font-weight: 700; letter-spacing: 1px; flex-shrink: 0;
+    }
+    .col-head .model-tag { font-size: 10px; color: var(--sub); font-weight: 400; border: 1px solid var(--border); border-radius: 20px; padding: 2px 8px; }
+    .col-head .port-tag  { font-size: 10px; color: var(--accent); font-weight: 400; }
+    .col-head .spacer { flex: 1; }
+    .stat-row { display: flex; gap: 12px; padding: 8px 16px; background: #0d1520; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .stat { display: flex; flex-direction: column; gap: 1px; }
+    .stat .sv { font-size: 15px; font-weight: 700; }
+    .stat .sk { font-size: 10px; color: var(--sub); letter-spacing: .5px; }
+    .stat.green .sv { color: var(--green); }
+    .stat.amber .sv { color: var(--amber); }
+    .stat.blue  .sv { color: var(--accent); }
+    .msg-list { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+    /* ── MESSAGES ── */
+    .msg { border-radius: var(--r); padding: 10px 12px; font-size: 12px; line-height: 1.6; }
+    .msg.user  { background: #0d1a2a; border: 1px solid var(--border); color: var(--sub); }
+    .msg.bot   { background: var(--panel); border: 1px solid var(--border); white-space: pre-wrap; word-break: break-word; }
+    .msg.error { background: #1a0808; border: 1px solid var(--red); color: var(--red); }
+    .msg.spin  { background: var(--panel); border: 1px solid var(--border); color: var(--sub); display: flex; align-items: center; gap: 8px; }
+    .msg-meta { font-size: 10px; color: var(--sub); margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .msg-meta .win { color: var(--green); font-weight: 700; }
+
+    /* ── ANIM ── */
+    @keyframes spin { to { rotate: 360deg; } }
+    .spinner { width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; flex-shrink: 0; }
+
+    /* ── SUMMARY BAR ── */
+    .summary-bar { padding: 10px 20px; background: var(--panel); border-top: 1px solid var(--border); display: flex; gap: 20px; align-items: center; flex-shrink: 0; font-size: 12px; overflow-x: auto; }
+    .summary-bar .sb-label { color: var(--sub); }
+    .summary-bar .sb-val   { font-weight: 700; }
+    .sb-win-a { color: var(--accent); }
+    .sb-win-b { color: var(--amber); }
+
+    /* ── STATUS DOTS ── */
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--sub); }
+    .status-dot.ok     { background: var(--green); }
+    .status-dot.err    { background: var(--red); }
+    .status-dot.busy   { background: var(--accent); animation: pulse 1s infinite; }
+    @keyframes pulse   { 0%,100% { opacity:1 } 50% { opacity:.4 } }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <span class="logo">⚡ E-Labs Copilot</span>
+  <h1>BACKEND COMPARISON</h1>
+  <div class="spacer"></div>
+  <span style="font-size:11px;color:var(--sub)">Send the same prompt to both — compare speed, quality, routing</span>
+</div>
+
+<!-- INPUT ZONE -->
+<div class="input-zone">
+  <div class="input-row">
+    <textarea id="promptInput" placeholder="Type a prompt and hit Send to both…&#10;e.g. 'Explain how a transformer neural network works'" rows="3"></textarea>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button class="btn send" id="btnSend" onclick="sendBoth()">▶ SEND BOTH</button>
+      <button class="btn clear" onclick="clearAll()">✕ CLEAR</button>
+    </div>
+  </div>
+  <div class="config-row">
+    <label>
+      MACHINE mode:
+      <select id="machineMode">
+        <option value="auto">auto (CEO routes)</option>
+        <option value="max">MAX</option>
+        <option value="gwen">GWEN</option>
+        <option value="nemotron">NEMOTRON</option>
+        <option value="multi">multi</option>
+      </select>
+    </label>
+    <label>
+      E-Labs Enterprise think:
+      <input type="checkbox" id="grThink"/>
+    </label>
+    <label>
+      Runs each:
+      <select id="runCount">
+        <option value="1">1×</option>
+        <option value="3">3× avg</option>
+        <option value="5">5× avg</option>
+      </select>
+    </label>
+    <span class="run-count" id="runBadge"></span>
+  </div>
+</div>
+
+<!-- SIDE-BY-SIDE COLUMNS -->
+<div class="cols" style="min-height:0;flex:1">
+
+  <!-- LEFT: E-Labs Copilot -->
+  <div class="col" id="colA">
+    <div class="col-head">
+      <div class="status-dot" id="dotA"></div>
+      <span style="color:var(--accent)">E-LABS COPILOT</span>
+      <span class="port-tag">:8001</span>
+      <span class="model-tag" id="modelTagA">CEO → auto</span>
+      <div class="spacer"></div>
+    </div>
+    <div class="stat-row" id="statsA">
+      <div class="stat blue"><div class="sv" id="aTime">—</div><div class="sk">TOTAL ms</div></div>
+      <div class="stat green"><div class="sv" id="aRouteTime">—</div><div class="sk">ROUTE ms</div></div>
+      <div class="stat"><div class="sv" id="aTokens">—</div><div class="sk">TOKENS</div></div>
+      <div class="stat amber"><div class="sv" id="aMuscle">—</div><div class="sk">MUSCLE</div></div>
+      <div class="stat"><div class="sv" id="aLen">—</div><div class="sk">CHARS</div></div>
+    </div>
+    <div class="msg-list" id="msgsA"></div>
+  </div>
+
+  <!-- RIGHT: E-Labs Enterprise -->
+  <div class="col" id="colB">
+    <div class="col-head">
+      <div class="status-dot" id="dotB"></div>
+      <span style="color:var(--amber)">E-LABS ENTERPRISE</span>
+      <span class="port-tag">:8002</span>
+      <span class="model-tag" id="modelTagB">gemma4:e2b</span>
+      <div class="spacer"></div>
+    </div>
+    <div class="stat-row" id="statsB">
+      <div class="stat blue"><div class="sv" id="bTime">—</div><div class="sk">TOTAL ms</div></div>
+      <div class="stat green"><div class="sv" id="bRouteTime">—</div><div class="sk">ROUTE ms</div></div>
+      <div class="stat"><div class="sv" id="bTokens">—</div><div class="sk">TOKENS</div></div>
+      <div class="stat amber"><div class="sv" id="bMuscle">—</div><div class="sk">MODEL</div></div>
+      <div class="stat"><div class="sv" id="bLen">—</div><div class="sk">CHARS</div></div>
+    </div>
+    <div class="msg-list" id="msgsB"></div>
+  </div>
+
+</div>
+
+<!-- SUMMARY BAR -->
+<div class="summary-bar" id="summaryBar">
+  <span class="sb-label">Awaiting first send…</span>
+</div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const MACHINE_URL = 'http://localhost:8001';
+const ENTERPRISE_URL = 'http://localhost:8002';
+
+let _totalSends = 0;
+let _aWins = 0, _bWins = 0, _ties = 0;
+let _aAvgMs = 0, _bAvgMs = 0;
+let _aSamples = [], _bSamples = [];
+
+// ── Health check on load ──────────────────────────────────────────────────────
+async function checkHealth() {
+  for (const [id, url, dot] of [['A', MACHINE_URL + '/api/generate', 'dotA'], ['B', ENTERPRISE_URL + '/health', 'dotB']]) {
+    try {
+      const r = await fetch(url === MACHINE_URL + '/api/generate' ? MACHINE_URL + '/health' : url, { method: 'GET', signal: AbortSignal.timeout(3000) });
+      document.getElementById(dot).className = 'status-dot ' + (r.ok ? 'ok' : 'err');
+    } catch { document.getElementById(dot).className = 'status-dot err'; }
+  }
+}
+checkHealth();
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function appendMsg(col, cls, html) {
+  const el = document.getElementById('msgs' + col);
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls;
+  d.innerHTML = html;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+  return d;
+}
+
+function setDot(col, state) { document.getElementById('dot' + col).className = 'status-dot ' + state; }
+function setStat(id, val) { document.getElementById(id).textContent = val; }
+
+function avg(arr) { return arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : 0; }
+
+// ── Send both ─────────────────────────────────────────────────────────────────
+async function sendBoth() {
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt) return;
+
+  const runs = parseInt(document.getElementById('runCount').value) || 1;
+  const mode = document.getElementById('machineMode').value;
+  const think = document.getElementById('grThink').checked;
+
+  document.getElementById('btnSend').disabled = true;
+  document.getElementById('runBadge').textContent = runs > 1 ? `Running ${runs}× each…` : '';
+
+  // Show user prompt in both columns
+  appendMsg('A', 'user', escHtml(prompt));
+  appendMsg('B', 'user', escHtml(prompt));
+
+  const spinA = appendMsg('A', 'spin', '<div class="spinner"></div> Waiting for E-Labs Copilot…');
+  const spinB = appendMsg('B', 'spin', '<div class="spinner"></div> Waiting for E-Labs Enterprise…');
+  setDot('A', 'busy'); setDot('B', 'busy');
+
+  // Run N times and average
+  const aResults = [], bResults = [];
+  for (let i = 0; i < runs; i++) {
+    const [ra, rb] = await Promise.all([
+      callMachine(prompt, mode),
+      callGRAgents(prompt, think),
+    ]);
+    aResults.push(ra);
+    bResults.push(rb);
+    if (runs > 1) document.getElementById('runBadge').textContent = `Run ${i+1}/${runs} done`;
+  }
+
+  spinA.remove();
+  spinB.remove();
+  setDot('A', 'ok');
+  setDot('B', 'ok');
+  document.getElementById('btnSend').disabled = false;
+  document.getElementById('runBadge').textContent = '';
+
+  // Use last result for display, avg for timing
+  const a = aResults[aResults.length - 1];
+  const b = bResults[bResults.length - 1];
+  const aTimeAvg = avg(aResults.map(r => r.totalMs));
+  const bTimeAvg = avg(bResults.map(r => r.totalMs));
+
+  // Track history
+  _totalSends++;
+  _aSamples.push(aTimeAvg);
+  _bSamples.push(bTimeAvg);
+
+  const faster = aTimeAvg < bTimeAvg ? 'A' : bTimeAvg < aTimeAvg ? 'B' : 'tie';
+  if (faster === 'A') _aWins++;
+  else if (faster === 'B') _bWins++;
+  else _ties++;
+
+  // Update stats
+  setStat('aTime',      aTimeAvg > 0 ? aTimeAvg : '—');
+  setStat('aRouteTime', a.routeMs > 0 ? a.routeMs : '—');
+  setStat('aTokens',    a.tokens || '—');
+  setStat('aMuscle',    a.muscle || '—');
+  setStat('aLen',       a.text ? a.text.length : '—');
+  document.getElementById('modelTagA').textContent = a.muscle || 'auto';
+
+  setStat('bTime',      bTimeAvg > 0 ? bTimeAvg : '—');
+  setStat('bRouteTime', '—');
+  setStat('bTokens',    b.tokens || '—');
+  setStat('bMuscle',    b.model || 'gemma4:e2b');
+  setStat('bLen',       b.text ? b.text.length : '—');
+
+  // diff%
+  let speedNote = '';
+  if (aTimeAvg > 0 && bTimeAvg > 0) {
+    const diff = Math.abs(aTimeAvg - bTimeAvg);
+    const pct = Math.round(diff / Math.min(aTimeAvg, bTimeAvg) * 100);
+    speedNote = faster === 'A'
+      ? `<span class="sb-win-a">MACHINE ${pct}% faster</span>`
+      : faster === 'B'
+        ? `<span class="sb-win-b">E-Labs Enterprise ${pct}% faster</span>`
+        : '<span>Dead heat</span>';
+  }
+
+  // Render response
+  const aWinStyle = faster === 'A' ? 'style="border-color:var(--green)"' : '';
+  const bWinStyle = faster === 'B' ? 'style="border-color:var(--amber)"' : '';
+  const metaA = buildMeta(a, aTimeAvg, runs, faster === 'A' ? '⚡ FASTER' : '');
+  const metaB = buildMeta(b, bTimeAvg, runs, faster === 'B' ? '⚡ FASTER' : '');
+
+  if (a.error) {
+    appendMsg('A', 'error', `Error: ${escHtml(a.error)}`);
+  } else {
+    const el = appendMsg('A', 'bot', '');
+    el.setAttribute('style', aWinStyle.replace('style=','').replace(/"/g,''));
+    el.textContent = a.text || '';
+    const m = document.createElement('div');
+    m.className = 'msg-meta';
+    m.innerHTML = metaA;
+    el.appendChild(m);
+  }
+
+  if (b.error) {
+    appendMsg('B', 'error', `Error: ${escHtml(b.error)}`);
+  } else {
+    const el = appendMsg('B', 'bot', '');
+    el.setAttribute('style', bWinStyle.replace('style=','').replace(/"/g,''));
+    el.textContent = b.text || '';
+    const m = document.createElement('div');
+    m.className = 'msg-meta';
+    m.innerHTML = metaB;
+    el.appendChild(m);
+  }
+
+  // Update summary bar
+  const aOverallAvg = avg(_aSamples);
+  const bOverallAvg = avg(_bSamples);
+  document.getElementById('summaryBar').innerHTML = `
+    <span class="sb-label">Sends:</span> <span class="sb-val">${_totalSends}</span>
+    &nbsp;|&nbsp;
+    <span class="sb-label">MACHINE wins:</span> <span class="sb-val sb-win-a">${_aWins}</span>
+    <span class="sb-label">GR wins:</span> <span class="sb-val sb-win-b">${_bWins}</span>
+    <span class="sb-label">Ties:</span> <span class="sb-val">${_ties}</span>
+    &nbsp;|&nbsp;
+    <span class="sb-label">Avg MACHINE:</span> <span class="sb-val">${aOverallAvg}ms</span>
+    <span class="sb-label">Avg GR:</span> <span class="sb-val">${bOverallAvg}ms</span>
+    &nbsp;|&nbsp;
+    ${speedNote}
+  `;
+}
+
+function buildMeta(r, ms, runs, winLabel) {
+  const parts = [];
+  if (winLabel) parts.push(`<span class="win">${winLabel}</span>`);
+  if (ms) parts.push(`${ms}ms${runs>1?' (avg)':''}`);
+  if (r.tokens) parts.push(`${r.tokens} tok`);
+  if (r.muscle) parts.push(`muscle: ${r.muscle}`);
+  if (r.model)  parts.push(`model: ${r.model}`);
+  if (r.routeMs) parts.push(`route: ${r.routeMs}ms`);
+  return parts.join(' · ');
+}
+
+// ── E-Labs Copilot call ───────────────────────────────────────────────────────
+async function callMachine(prompt, mode) {
+  const t0 = performance.now();
+  try {
+    const r = await fetch(MACHINE_URL + '/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, mode }),
+    });
+    const d = await r.json();
+    return {
+      text: d.response || d.text || JSON.stringify(d),
+      tokens: d.tokens || d.eval_count || 0,
+      muscle: d.muscle || '',
+      routeMs: d.route_time ? Math.round(d.route_time * 1000) : 0,
+      totalMs: Math.round(performance.now() - t0),
+      raw: d,
+    };
+  } catch(e) {
+    return { error: String(e), totalMs: Math.round(performance.now() - t0) };
+  }
+}
+
+// ── E-Labs Enterprise call ────────────────────────────────────────────────────────────
+async function callGRAgents(prompt, think) {
+  const t0 = performance.now();
+  try {
+    const r = await fetch(ENTERPRISE_URL + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, history: [], think }),
+    });
+    const d = await r.json();
+    return {
+      text: (d.message || {}).content || d.response || d.content || JSON.stringify(d),
+      tokens: d.eval_count || 0,
+      model: d.model || 'gemma4:e2b',
+      totalMs: Math.round(performance.now() - t0),
+      raw: d,
+    };
+  } catch(e) {
+    return { error: String(e), totalMs: Math.round(performance.now() - t0) };
+  }
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function clearAll() {
+  ['msgsA','msgsB'].forEach(id => { document.getElementById(id).innerHTML = ''; });
+  ['aTime','aRouteTime','aTokens','aMuscle','aLen',
+   'bTime','bRouteTime','bTokens','bMuscle','bLen']
+    .forEach(id => setStat(id, '—'));
+  document.getElementById('summaryBar').innerHTML = '<span class="sb-label">Cleared.</span>';
+  _totalSends = _aWins = _bWins = _ties = 0;
+  _aSamples = []; _bSamples = [];
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Quick-send on Ctrl+Enter
+document.getElementById('promptInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendBoth(); }
+});
+</script>
+</body>
+</html>

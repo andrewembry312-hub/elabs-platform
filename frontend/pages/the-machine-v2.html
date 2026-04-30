@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>THE MACHINE — Project</title>
+  <link rel="stylesheet" href="css/machine.css">
+  <style>
+    /* Loading overlay */
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg-deep);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+    #loadingOverlay .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(0, 212, 255, 0.15);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* File tree */
+    #fileTree {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #06060e;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      padding: 4px 0;
+    }
+
+    /* Project info */
+    #projectInfo {
+      padding: 8px 0;
+    }
+
+    /* Swarm button style */
+    .btn-swarm {
+      background: linear-gradient(135deg, #38BDF8 0%, #44ddaa 100%) !important;
+      color: #000 !important;
+      font-weight: 700 !important;
+      border: none !important;
+    }
+    .btn-swarm:hover {
+      filter: brightness(1.2);
+    }
+
+    /* Log area color classes (simple — no .msg nesting) */
+    .log-cyan { color: var(--cyan); }
+    .log-green { color: var(--green-bright); }
+    .log-pink { color: var(--pink); }
+    .log-gold { color: var(--gold); }
+    .log-purple { color: var(--purple); }
+    .log-orange { color: #ff8a65; }
+    .log-yellow { color: #ffd700; }
+  </style>
+</head>
+<body>
+
+  <!-- Loading overlay -->
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div style="color:var(--cyan);font-size:13px;opacity:0.7">Loading THE MACHINE...</div>
+  </div>
+
+  <div class="layout">
+    <!-- ═══ LEFT SIDEBAR — Node steps ═══ -->
+    <div class="sidebar-left">
+      <h2>⚙ Nodes</h2>
+      <div class="step-list" id="stepSidebar">
+        <!-- Built dynamically from manifest -->
+      </div>
+    </div>
+
+    <!-- ═══ CENTER — Canvas + controls ═══ -->
+    <div class="canvas-area">
+      <!-- Top bar -->
+      <div class="top-bar">
+        <h1>⚡ THE MACHINE</h1>
+        <span class="tag">Project</span>
+        <div class="spacer"></div>
+        <div class="stat">Step <strong id="stepNum">—</strong></div>
+        <div class="stat">Phase <strong id="phaseName">—</strong></div>
+        <div class="stat">Agents <strong id="agentCount">0</strong></div>
+        <div class="stat" id="playbackStatus" style="margin-left:8px">Idle</div>
+      </div>
+
+      <!-- Main canvas view -->
+      <div class="main-view">
+        <canvas id="bgCanvas"></canvas>
+        <canvas id="fgCanvas"></canvas>
+      </div>
+
+      <!-- Bottom bar -->
+      <div class="bottom-bar">
+        <button class="btn" id="playBtn">▶ Play</button>
+        <button class="btn" id="pauseBtn" disabled>⏸ Pause</button>
+        <button class="btn" id="resetBtn">↺ Reset</button>
+        <button class="btn" id="stepBtn">⏭ Step</button>
+        <button class="btn btn-swarm" id="swarmBtn">⚡ SWARM</button>
+        <div class="speed-ctrl">
+          <span>Speed</span>
+          <input type="range" id="speedSlider" min="0.25" max="4" step="0.25" value="1">
+          <span class="speed-val" id="speedVal">1×</span>
+        </div>
+        <div class="spacer"></div>
+        <div class="stat" style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--cyan)" id="timer-display">00:00</div>
+      </div>
+    </div>
+
+    <!-- ═══ RIGHT PANEL ═══ -->
+    <div class="panel-right">
+
+      <!-- Playback controls -->
+      <div class="panel-section">
+        <h3>Controls</h3>
+        <div class="play-card">
+          <button class="btn-play" id="playBtnRight">▶ Play</button>
+          <button class="btn-sm" id="pauseBtnRight">⏸</button>
+          <button class="btn-sm" id="resetBtnRight">↺</button>
+        </div>
+      </div>
+
+      <!-- Project Info -->
+      <div class="panel-section">
+        <h3>Project</h3>
+        <div id="projectInfo">Loading...</div>
+      </div>
+
+      <!-- VRAM -->
+      <div class="panel-section">
+        <h3>VRAM</h3>
+        <div class="info-row">
+          <span class="label">Used</span>
+          <span class="value" id="vramUsed">0 GB</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Total</span>
+          <span class="value" id="vramTotal">12.0 GB</span>
+        </div>
+        <div class="vram-outer">
+          <div class="vram-inner" id="vramBar" style="width:0%"></div>
+          <span class="vram-text" id="vramText">0%</span>
+        </div>
+        <div id="loadingQueue" style="display:none;margin-top:6px"></div>
+      </div>
+
+      <!-- Progress -->
+      <div class="panel-section">
+        <h3>Progress</h3>
+        <div class="metric-row">
+          <span>Workflow</span>
+          <strong id="workflowPercent">0%</strong>
+        </div>
+        <div class="bar-container">
+          <div class="bar-fill green" id="workflowBar" style="width:0%"></div>
+        </div>
+        <div class="metric-row">
+          <span>Current Step</span>
+          <strong id="stepPercent">—</strong>
+        </div>
+        <div class="bar-container">
+          <div class="bar-fill cyan" id="stepBar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Agents -->
+      <div class="panel-section">
+        <h3>Agents</h3>
+        <div id="agentCardList">
+          <!-- Built dynamically -->
+        </div>
+      </div>
+
+      <!-- File tree (shown if linked_dir) -->
+      <div class="panel-section">
+        <h3>📁 Linked Directory</h3>
+        <div id="fileTree" style="font-size:11px;color:#666">Not linked</div>
+      </div>
+
+      <!-- Log -->
+      <div class="panel-section">
+        <h3>Log</h3>
+        <div class="log-area" id="logArea"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
