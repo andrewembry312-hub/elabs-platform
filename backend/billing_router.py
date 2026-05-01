@@ -45,10 +45,13 @@ _PUBLIC_DOMAIN = os.environ.get("PUBLIC_DOMAIN", "copilot.elabsai.com")
 
 # Price IDs (created once in the Stripe Dashboard → Products → Add product)
 _PRICE_IDS: dict[str, str] = {
-    "copilot:pro":      os.environ.get("STRIPE_COPILOT_PRO_PRICE", ""),
-    "copilot:team":     os.environ.get("STRIPE_COPILOT_TEAM_PRICE", ""),
-    "machine:starter":  os.environ.get("STRIPE_MACHINE_STARTER_PRICE", ""),
-    "machine:pro":      os.environ.get("STRIPE_MACHINE_PRO_PRICE", ""),
+    "copilot:pro":              os.environ.get("STRIPE_COPILOT_PRO_PRICE", ""),
+    "copilot:team":             os.environ.get("STRIPE_COPILOT_TEAM_PRICE", ""),
+    "machine:starter":          os.environ.get("STRIPE_MACHINE_STARTER_PRICE", ""),
+    "machine:pro":              os.environ.get("STRIPE_MACHINE_PRO_PRICE", ""),
+    "content-studio:basic":     os.environ.get("STRIPE_CONTENT_STUDIO_BASIC_PRICE", ""),
+    "content-studio:pro":       os.environ.get("STRIPE_CONTENT_STUDIO_PRO_PRICE", ""),
+    "content-studio:studio":    os.environ.get("STRIPE_CONTENT_STUDIO_STUDIO_PRICE", ""),
 }
 
 # ── Usage limits per tier ─────────────────────────────────────────────────────

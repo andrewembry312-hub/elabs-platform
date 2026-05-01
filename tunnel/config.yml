@@ -20,8 +20,8 @@
 #   Hermes Agent, ComfyUI — no public subdomains needed
 # ─────────────────────────────────────────────────────────────────────────────
 
-tunnel: REPLACE_WITH_TUNNEL_UUID
-credentials-file: C:\Users\AI-Machine\.cloudflared\REPLACE_WITH_TUNNEL_UUID.json
+tunnel: 2b3925db-c1ad-4641-96e7-2a724edb2c14
+credentials-file: C:\Users\AI-Machine\.cloudflared\2b3925db-c1ad-4641-96e7-2a724edb2c14.json
 
 ingress:
   # ── Public marketing + pricing page ──────────────────────────────────────
