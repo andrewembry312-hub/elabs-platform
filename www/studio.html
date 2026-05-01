@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Content Studio — E-Labs Platform</title>
+    <meta name="description" content="E-Labs AI Content Studio — serverless GPU services for video, voice, and image creation.">
+    <meta name="theme-color" content="#08080f">
+    <meta name="color-scheme" content="dark">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+    --bg:#0a0a0f;--bg2:#111118;--bg3:#16161f;
+    --border:#1e1e2e;--border2:#2a2a3e;
+    --text:#e8e8f0;--muted:#8888a8;
+    --accent:#6c63ff;--accent2:#8b5cf6;
+    --cyan:#38bdf8;
+    --green:#22c55e;--yellow:#eab308;--red:#ef4444;
+    --sidebar-w:220px;--panel-w:440px;
+    --r:12px;--r-lg:18px;
+    --shadow:0 2px 20px rgba(0,0,0,.45);
+}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow:hidden;height:100vh;-webkit-font-smoothing:antialiased}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+
+/* APP SHELL */
+.app-shell{display:grid;grid-template-columns:var(--sidebar-w) var(--panel-w) 1fr;height:100vh;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:rgba(108,99,255,.15) transparent}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:rgba(108,99,255,.15);border-radius:4px}
+.sidebar-top{padding:16px 12px 8px;flex-shrink:0}
+.sidebar-brand{display:flex;align-items:center;gap:9px;text-decoration:none;margin-bottom:16px}
+.brand-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:900;color:#fff;flex-shrink:0;box-shadow:0 0 12px rgba(108,99,255,.4)}
+.brand-name{font-size:.85rem;font-weight:800;color:var(--text)}
+.brand-sub{font-size:.65rem;color:var(--muted);margin-top:1px}
+.sidebar-section-lbl{font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:12px 10px 5px}
+.sidebar-nav{padding:0 6px;flex:1}
+.snav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;background:none;border:1px solid transparent;color:var(--muted);font-family:inherit;font-size:.82rem;font-weight:500;cursor:pointer;width:100%;text-align:left;transition:all .15s;position:relative;margin-bottom:1px}
+.snav-item::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:0;border-radius:0 3px 3px 0;background:var(--accent);transition:height .15s}
+.snav-item:hover:not(.locked){background:rgba(108,99,255,.07);border-color:rgba(108,99,255,.12);color:var(--text)}
+.snav-item.active{background:rgba(108,99,255,.1);border-color:rgba(108,99,255,.25);color:var(--text)}
+.snav-item.active::before{height:60%}
+.snav-item.locked{opacity:.38;cursor:default}
+.snav-icon{width:30px;height:30px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,border-color .15s,box-shadow .15s;color:var(--muted)}
+.snav-item.active .snav-icon{background:rgba(108,99,255,.15);border-color:rgba(108,99,255,.3);color:var(--accent);box-shadow:0 0 10px rgba(108,99,255,.2)}
+.snav-text{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{font-size:.58rem;font-weight:700;padding:2px 6px;border-radius:999px;flex-shrink:0}
+.badge-live{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.25);color:var(--green)}
+.badge-pro{background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.25);color:#a5b4fc}
+.badge-soon{background:rgba(234,179,8,.09);border:1px solid rgba(234,179,8,.2);color:var(--yellow)}
+.sidebar-bottom{padding:10px 6px 14px;border-top:1px solid var(--border);flex-shrink:0}
+.sidebar-acct{padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;font-size:.78rem;margin-bottom:8px}
+.acct-out{display:flex;align-items:center;gap:7px;color:var(--muted)}
+.acct-link{color:var(--accent);text-decoration:none;font-weight:600;cursor:pointer}
+.acct-link:hover{color:#a5b4fc}
+.acct-in{display:none;flex-direction:column;gap:5px}
+.plan-badge{display:inline-flex;align-items:center;gap:5px;font-size:.69rem;font-weight:700;padding:3px 9px;border-radius:999px;width:fit-content}
+.p-basic{background:rgba(56,189,248,.09);border:1px solid rgba(56,189,248,.22);color:#7dd3fc}
+.p-pro{background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.28);color:#a5b4fc}
+.p-studio{background:rgba(34,197,94,.09);border:1px solid rgba(34,197,94,.22);color:#86efac}
+.p-enterprise{background:rgba(234,179,8,.09);border:1px solid rgba(234,179,8,.22);color:#fde68a}
+.acct-gens{font-size:.73rem;color:var(--muted)}
+.acct-gens strong{color:var(--text)}
+.acct-actions{display:flex;gap:6px;margin-top:4px}
+.acct-btn{flex:1;font-size:.7rem;font-weight:600;padding:4px 7px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;text-align:center;text-decoration:none;transition:all .15s}
+.acct-btn:hover{color:var(--text);border-color:rgba(108,99,255,.4);background:rgba(108,99,255,.08)}
+.sfooter-link{display:flex;align-items:center;gap:7px;padding:7px 10px;font-size:.79rem;color:var(--muted);text-decoration:none;border-radius:8px;border:1px solid transparent;transition:all .15s}
+.sfooter-link:hover{color:var(--text);background:rgba(108,99,255,.05);border-color:var(--border)}
+
+/* TOOL PANEL */
+.tool-panel{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.tool-head{padding:14px 20px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.breadcrumb{display:flex;align-items:center;gap:6px;font-size:.73rem;color:var(--muted);margin-bottom:8px}
+.breadcrumb a{color:var(--muted);text-decoration:none}
+.breadcrumb a:hover{color:var(--text)}
+.tool-head-row{display:flex;align-items:center;justify-content:space-between}
+.tool-info{display:flex;align-items:center;gap:10px}
+.tool-icon-box{width:38px;height:38px;border-radius:10px;background:var(--bg3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--accent);transition:box-shadow .2s}
+.tool-icon-box.lit{box-shadow:0 0 14px rgba(108,99,255,.3);background:rgba(108,99,255,.1);border-color:rgba(108,99,255,.3)}
+.tool-lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.tool-name{font-size:.97rem;font-weight:800;color:var(--text);line-height:1.2}
+.btn-ghost{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:600;padding:6px 12px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;font-family:inherit;text-decoration:none;transition:all .15s}
+.btn-ghost:hover{color:var(--text);border-color:rgba(108,99,255,.3);background:rgba(108,99,255,.06)}
+.model-row{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;flex-shrink:0}
+.model-row:hover{background:rgba(108,99,255,.04)}
+.model-left{display:flex;align-items:center;gap:10px}
+.model-chip{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,rgba(108,99,255,.2),rgba(56,189,248,.15));border:1px solid rgba(108,99,255,.25);display:flex;align-items:center;justify-content:center;color:var(--accent);flex-shrink:0}
+.model-lbl{font-size:.64rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.model-name-txt{font-size:.86rem;font-weight:700;color:var(--text)}
+.chevron{color:var(--muted)}
+.workspace{flex:1;overflow-y:auto;padding:16px 20px 8px;scrollbar-width:thin;scrollbar-color:rgba(108,99,255,.1) transparent}
+.workspace::-webkit-scrollbar{width:4px}
+.workspace::-webkit-scrollbar-thumb{background:rgba(108,99,255,.12);border-radius:4px}
+
+/* Welcome */
+.ws-welcome{padding:24px 0}
+.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:.7rem;font-weight:600;color:#a5b4fc;background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.18);padding:4px 12px;border-radius:999px;margin-bottom:16px}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.ws-welcome h2{font-size:1.35rem;font-weight:900;line-height:1.2;margin-bottom:10px}
+.grad{background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.ws-welcome-sub{font-size:.86rem;color:var(--muted);max-width:340px;line-height:1.65;margin-top:8px;margin-bottom:20px}
+.qchips{display:flex;flex-wrap:wrap;gap:7px;margin-top:18px}
+.qchip{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;font-size:.78rem;font-weight:600;color:var(--muted);background:var(--bg3);border:1px solid var(--border2);border-radius:999px;cursor:pointer;font-family:inherit;transition:all .15s}
+.qchip:hover{color:var(--text);border-color:rgba(108,99,255,.35);background:rgba(108,99,255,.07)}
+
+/* Auth gate */
+.auth-gate{max-width:320px;margin:32px auto;text-align:center;padding:36px 28px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.auth-gate-icon{color:var(--muted);margin-bottom:14px}
+.auth-gate h3{font-size:1rem;font-weight:800;margin-bottom:8px}
+.auth-gate p{font-size:.82rem;color:var(--muted);margin-bottom:20px;line-height:1.6}
+
+/* Cards */
+.wcard{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:10px;transition:border-color .2s,box-shadow .2s;position:relative}
+.wcard::before{content:'';position:absolute;left:0;top:16px;bottom:16px;width:3px;border-radius:0 3px 3px 0;background:transparent;transition:background .2s}
+.wcard:focus-within{border-color:rgba(108,99,255,.3);box-shadow:0 0 0 3px rgba(108,99,255,.06)}
+.wcard:focus-within::before{background:var(--accent)}
+.wcard-title{font-size:.88rem;font-weight:700;color:var(--text);margin-bottom:2px}
+.wcard-sub{font-size:.76rem;color:var(--muted);line-height:1.55;margin-bottom:12px}
+textarea.wfield{width:100%;min-height:110px;padding:11px 13px;border-radius:9px;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:inherit;font-size:.86rem;line-height:1.6;resize:vertical;transition:border-color .2s,box-shadow .2s}
+textarea.wfield:focus{outline:none;border-color:rgba(108,99,255,.45);box-shadow:0 0 0 3px rgba(108,99,255,.1)}
+textarea.wfield::placeholder{color:var(--muted)}
+
+/* Drop zone */
+.dz{border:1.5px dashed rgba(108,99,255,.25);border-radius:11px;padding:20px 14px;text-align:center;cursor:pointer;background:rgba(108,99,255,.03);transition:border-color .2s,background .2s;position:relative}
+.dz:hover,.dz.over{border-color:rgba(108,99,255,.55);background:rgba(108,99,255,.07)}
+.dz-icon{color:rgba(108,99,255,.5);margin-bottom:9px}
+.dz-title{font-size:.83rem;font-weight:600;color:var(--text);margin-bottom:3px}
+.dz-sub{font-size:.73rem;color:var(--muted)}
+.dz-fname{font-size:.76rem;font-weight:600;color:var(--green);margin-top:6px;display:none}
+.dz input[type=file]{display:none}
+.dz-or{display:flex;align-items:center;gap:8px;margin:12px 0;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.dz-or::before,.dz-or::after{content:'';flex:1;height:1px;background:var(--border)}
+.url-row{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border2);border-radius:9px;padding:0 12px;transition:border-color .2s,box-shadow .2s}
+.url-row:focus-within{border-color:rgba(108,99,255,.45);box-shadow:0 0 0 3px rgba(108,99,255,.1)}
+.url-icon{color:var(--muted);flex-shrink:0}
+.url-input{flex:1;padding:10px 0;background:transparent;border:none;color:var(--text);font-family:inherit;font-size:.84rem}
+.url-input:focus{outline:none}
+.url-input::placeholder{color:var(--muted)}
+
+/* Style chips */
+.style-chips{display:flex;flex-wrap:wrap;gap:7px}
+.style-chip{cursor:pointer}
+.style-chip input{display:none}
+.style-chip span{display:inline-block;padding:6px 14px;font-size:.79rem;font-weight:600;color:var(--muted);background:var(--bg);border:1px solid var(--border2);border-radius:999px;cursor:pointer;transition:all .15s;user-select:none}
+.style-chip:hover span{color:var(--text);border-color:rgba(108,99,255,.3)}
+.style-chip input:checked+span{color:#a5b4fc;background:rgba(108,99,255,.1);border-color:rgba(108,99,255,.38)}
+
+/* Form error */
+.form-err{font-size:.79rem;color:#fca5a5;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.22);padding:9px 13px;border-radius:9px;display:none;margin-bottom:10px}
+.form-err.show{display:block}
+
+/* Generate bar */
+.gen-bar{padding:11px 20px 13px;border-top:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+.gen-opts{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.q-chips{display:flex;gap:5px}
+.q-chip{padding:4px 11px;font-size:.73rem;font-weight:600;border-radius:999px;cursor:pointer;background:var(--bg3);border:1px solid var(--border2);color:var(--muted);font-family:inherit;transition:all .15s}
+.q-chip.on,.q-chip:hover{color:#a5b4fc;border-color:rgba(108,99,255,.38);background:rgba(108,99,255,.1)}
+.credit-badge{font-size:.72rem;font-weight:600;color:var(--yellow);background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);padding:4px 10px;border-radius:999px}
+.btn-gen{width:100%;padding:14px 24px;background:linear-gradient(135deg,var(--accent) 0%,var(--cyan) 100%);color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:.94rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .18s,box-shadow .18s,opacity .18s;position:relative;overflow:hidden}
+.btn-gen::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.12),transparent);pointer-events:none}
+.btn-gen:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 28px rgba(108,99,255,.42),0 0 60px rgba(56,189,248,.15)}
+.btn-gen:disabled{opacity:.28;cursor:not-allowed;transform:none;box-shadow:none}
+.gen-arrow{transition:transform .18s}
+.btn-gen:hover:not(:disabled) .gen-arrow{transform:translateX(3px)}
+
+/* GALLERY */
+.gallery{background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.gallery-head{padding:14px 24px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.gallery-head-title{font-size:.84rem;font-weight:700;color:var(--text)}
+.gtabs{display:flex;gap:2px}
+.gtab{padding:5px 14px;font-size:.76rem;font-weight:600;border-radius:8px;border:1px solid transparent;color:var(--muted);cursor:pointer;font-family:inherit;background:transparent;transition:all .15s}
+.gtab.on,.gtab:hover{color:var(--text);background:var(--bg3);border-color:var(--border)}
+.gallery-body{flex:1;overflow-y:auto;padding:24px;scrollbar-width:thin;scrollbar-color:rgba(108,99,255,.1) transparent;display:flex;flex-direction:column}
+.gallery-body::-webkit-scrollbar{width:5px}
+.gallery-body::-webkit-scrollbar-thumb{background:rgba(108,99,255,.12);border-radius:4px}
+
+/* Gallery welcome */
+.gw{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 24px}
+.gw-ring{width:80px;height:80px;border-radius:50%;background:radial-gradient(circle,rgba(108,99,255,.15),rgba(108,99,255,.02));border:1px solid rgba(108,99,255,.18);display:flex;align-items:center;justify-content:center;color:rgba(108,99,255,.5);margin-bottom:22px;box-shadow:0 0 40px rgba(108,99,255,.1)}
+.gw-title{font-size:1.2rem;font-weight:800;margin-bottom:8px}
+.gw-sub{font-size:.84rem;color:var(--muted);max-width:280px;line-height:1.6;margin-bottom:22px}
+.gw-feats{display:flex;flex-direction:column;gap:8px;text-align:left;width:100%;max-width:260px}
+.gw-feat{display:flex;align-items:center;gap:9px;font-size:.78rem;color:var(--muted);padding:8px 12px;border-radius:9px;background:var(--bg2);border:1px solid var(--border)}
+.gw-feat svg{color:var(--accent);flex-shrink:0}
+
+/* Output */
+.out-panel{display:none;flex-direction:column;gap:12px}
+.out-panel.show{display:flex}
+.out-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;font-size:.78rem}
+.status-pill{display:inline-flex;align-items:center;gap:6px;font-size:.73rem;font-weight:700;padding:4px 11px;border-radius:999px}
+.s-queued{background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.25);color:var(--yellow)}
+.s-running{background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.25);color:#7dd3fc}
+.s-completed{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:var(--green)}
+.s-failed{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#fca5a5}
+.sdot{width:6px;height:6px;border-radius:50%}
+.sdot-queued{background:var(--yellow)}
+.sdot-running{background:#7dd3fc;animation:pulse 1.5s infinite}
+.sdot-completed{background:var(--green)}
+.sdot-failed{background:#fca5a5}
+.job-lbl{font-size:.7rem;color:var(--muted)}
+.job-lbl code{color:var(--text);font-family:monospace}
+.out-log{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:monospace;font-size:.76rem;color:var(--muted);line-height:1.8;min-height:48px}
+.out-media{aspect-ratio:16/9;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);display:none;overflow:hidden}
+.out-media.show{display:block}
+.out-media video,.out-media img{width:100%;height:100%;object-fit:contain}
+.out-dl{display:none;margin-top:4px}
+.out-dl.show{display:flex}
+.btn-dl{display:inline-flex;align-items:center;gap:7px;font-size:.82rem;font-weight:700;color:#86efac;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);padding:9px 18px;border-radius:9px;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-dl:hover{background:rgba(34,197,94,.14)}
+
+/* LOGIN MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.68);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.overlay.open{display:flex}
+.modal-box{background:var(--bg2);border:1px solid rgba(108,99,255,.25);border-radius:20px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 60px rgba(0,0,0,.6),0 0 80px rgba(108,99,255,.12);position:relative;animation:m-in .2s ease}
+@keyframes m-in{from{opacity:0;transform:translateY(-12px) scale(.97)}to{opacity:1;transform:none}}
+.modal-close{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{color:var(--text);background:var(--bg3)}
+.modal-logo{display:flex;align-items:center;gap:10px;margin-bottom:24px}
+.modal-logo-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:900;color:#fff;box-shadow:0 0 20px rgba(108,99,255,.4)}
+.modal-logo-name{font-size:1rem;font-weight:800}
+.modal-logo-sub{font-size:.7rem;color:var(--muted);margin-top:1px}
+.modal-h{font-size:1.25rem;font-weight:900;margin-bottom:5px}
+.modal-sub{font-size:.82rem;color:var(--muted);margin-bottom:22px;line-height:1.55}
+.modal-err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.22);color:#fca5a5;font-size:.81rem;padding:9px 13px;border-radius:9px;margin-bottom:14px;display:none}
+.modal-err.show{display:block}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:.79rem;font-weight:600;color:var(--muted);margin-bottom:6px}
+.field input{width:100%;padding:11px 14px;border-radius:9px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);font-family:inherit;font-size:.88rem;transition:border-color .2s,box-shadow .2s}
+.field input:focus{outline:none;border-color:rgba(108,99,255,.5);box-shadow:0 0 0 3px rgba(108,99,255,.12)}
+.field input::placeholder{color:var(--muted)}
+.btn-signin{width:100%;padding:13px 24px;margin-top:8px;background:linear-gradient(135deg,var(--accent),var(--cyan));color:#fff;border:none;border-radius:11px;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .18s,box-shadow .18s,opacity .18s;box-shadow:0 0 24px rgba(108,99,255,.3)}
+.btn-signin:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 32px rgba(108,99,255,.45)}
+.btn-signin:disabled{opacity:.5;cursor:not-allowed}
+.modal-footer{text-align:center;margin-top:16px;font-size:.78rem;color:var(--muted)}
+.modal-footer a{color:var(--accent);text-decoration:none}
+.modal-footer a:hover{color:#a5b4fc}
+.modal-svcs{display:flex;flex-wrap:wrap;gap:5px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.msvc{font-size:.68rem;font-weight:600;padding:3px 9px;border-radius:999px;background:rgba(108,99,255,.07);border:1px solid rgba(108,99,255,.15);color:var(--muted)}
+
+/* Mobile */
+.sov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:199;opacity:0;pointer-events:none;transition:opacity .25s}
+.sov.vis{opacity:1;pointer-events:all}
+.mob-bar{display:none}
+@media(max-width:1100px){.app-shell{grid-template-columns:var(--sidebar-w) 1fr}.gallery{display:none}}
+@media(max-width:720px){
+  body{overflow:auto;height:auto}
+  .app-shell{grid-template-columns:1fr;height:auto;overflow:visible}
+  .sidebar{position:fixed;top:0;left:-100%;height:100%;z-index:200;transition:left .28s ease}
+  .sidebar.open{left:0}
+  .sov{display:block}
+  .tool-panel{height:100vh;overflow:hidden}
+  .mob-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+  .menu-btn{background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px;display:flex;align-items:center;transition:all .15s}
+  .menu-btn:hover{color:var(--text);background:var(--bg3)}
+}
+
+/* PRICING SECTION */
+body.pricing-on{overflow:auto;height:auto}
+.pricing-outer{background:var(--bg);border-top:1px solid var(--border);padding:72px 0}
+.container{max-width:1100px;margin:0 auto;padding:0 28px}
+.sec-pill{display:inline-flex;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.18);padding:4px 12px;border-radius:999px;margin-bottom:14px}
+.sec-h{font-size:clamp(1.5rem,3vw,2.2rem);font-weight:900;line-height:1.15;margin-bottom:8px}
+.sec-sub{font-size:.9rem;color:var(--muted);max-width:480px;margin-bottom:40px}
+.p-grid{display:grid;gap:16px;grid-template-columns:repeat(4,1fr)}
+@media(max-width:1100px){.p-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.p-grid{grid-template-columns:1fr}}
+.pc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r-lg);padding:26px 22px;display:flex;flex-direction:column;position:relative;overflow:hidden;transition:border-color .22s,box-shadow .22s}
+.pc:hover{border-color:var(--border2);box-shadow:var(--shadow)}
+.pc.rec{border-color:rgba(108,99,255,.4);box-shadow:0 0 40px rgba(108,99,255,.08)}
+.pc.rec::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--cyan))}
+.pc-pop{font-size:.63rem;font-weight:700;padding:3px 9px;border-radius:999px;background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.3);color:#a5b4fc;align-self:flex-start;margin-bottom:10px}
+.pc-tier{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:2px}
+.pc-name{font-size:1rem;font-weight:800;margin-bottom:12px}
+.pc-price{font-size:2.2rem;font-weight:900;line-height:1;background:linear-gradient(135deg,var(--accent),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.pc-price-custom{font-size:1.7rem;font-weight:900;color:var(--text)}
+.pc-period{font-size:.72rem;color:var(--muted);margin:3px 0 6px}
+.pc-gens{font-size:.74rem;font-weight:600;color:var(--text);padding:5px 10px;background:rgba(108,99,255,.05);border:1px solid var(--border);border-radius:8px;margin-bottom:14px;text-align:center}
+.pc-hr{border:none;border-top:1px solid var(--border);margin:10px 0 14px}
+.pc-feats{list-style:none;flex:1}
+.pc-feats li{display:flex;align-items:flex-start;gap:7px;font-size:.77rem;color:var(--muted);padding:3px 0}
+.ck{color:var(--green);flex-shrink:0;font-weight:700}
+.lck{color:var(--border2);flex-shrink:0}
+.dim{color:rgba(136,136,168,.55)}
+.pc-cta{display:flex;align-items:center;justify-content:center;gap:7px;font-family:inherit;font-weight:600;font-size:.85rem;border:none;border-radius:10px;padding:12px 16px;cursor:pointer;text-decoration:none;transition:transform .18s,box-shadow .18s;margin-top:20px}
+.cta-a{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 0 18px rgba(108,99,255,.25)}
+.cta-a:hover{transform:translateY(-1px);box-shadow:0 4px 24px rgba(108,99,255,.4)}
+.cta-r{background:linear-gradient(135deg,var(--accent),var(--cyan));color:#fff;box-shadow:0 0 18px rgba(108,99,255,.3)}
+.cta-r:hover{transform:translateY(-1px)}
+.cta-s{background:transparent;color:var(--text);border:1px solid var(--border2)}
+.cta-s:hover{background:rgba(108,99,255,.06);border-color:rgba(108,99,255,.3)}
+.sub-sec{background:var(--bg2);border-top:1px solid var(--border);padding:72px 0}
+.sub-card{max-width:600px;margin:0 auto;text-align:center;padding:48px 36px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r-lg);box-shadow:var(--shadow)}
+.sub-card h2{font-size:clamp(1.4rem,2.8vw,1.8rem);font-weight:900;margin-bottom:10px}
+.sub-card p{font-size:.9rem;color:var(--muted);max-width:440px;margin:0 auto 24px}
+.sub-btns{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.btn-cta-a{display:inline-flex;align-items:center;gap:8px;font-size:.88rem;font-weight:700;padding:13px 24px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--cyan));color:#fff;border:none;cursor:pointer;font-family:inherit;text-decoration:none;transition:transform .18s,box-shadow .18s;box-shadow:0 0 24px rgba(108,99,255,.28)}
+.btn-cta-a:hover{transform:translateY(-1px);box-shadow:0 4px 32px rgba(108,99,255,.45)}
+.btn-cta-b{display:inline-flex;align-items:center;gap:7px;font-size:.88rem;font-weight:600;padding:13px 24px;border-radius:11px;border:1px solid var(--border2);background:transparent;color:var(--text);text-decoration:none;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-cta-b:hover{border-color:rgba(108,99,255,.4);background:rgba(108,99,255,.07)}
+.site-footer{padding:28px 0;border-top:1px solid var(--border);background:var(--bg)}
+.footer-inner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.footer-inner p{font-size:.75rem;color:var(--muted)}
+.footer-inner a{color:var(--accent);text-decoration:none}
+.footer-inner a:hover{color:#a5b4fc}
+    </style>
+</head>
+<body>
+
+<!-- ════════════════ LOGIN MODAL ════════════════ -->
+<div class="overlay" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="mh">
+  <div class="modal-box">
+    <button class="modal-close" id="mc" aria-label="Close">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="modal-logo">
+      <div class="modal-logo-icon" aria-hidden="true">EL</div>
+      <div>
+        <div class="modal-logo-name">E-Labs Platform</div>
+        <div class="modal-logo-sub">AI Integration Suite</div>
+      </div>
+    </div>
+    <h2 class="modal-h" id="mh">Sign in to your account</h2>
+    <p class="modal-sub">Access AI Content Studio and all E-Labs services with one account.</p>
+    <div class="modal-err" id="modalErr" role="alert"></div>
+    <form id="loginForm" novalidate>
+      <div class="field">
+        <label for="mu">Username or Email</label>
+        <input type="text" id="mu" name="username" placeholder="your-username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="mp">Password</label>
+        <input type="password" id="mp" name="password" placeholder="••••••••••" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn-signin" id="ms">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+        Sign In
+      </button>
+    </form>
+    <div class="modal-footer">
+      <p>No account? <a href="https://www.elabsai.com/#contact">Request access</a> &middot; <a href="https://www.elabsai.com">Home</a></p>
+    </div>
+    <div class="modal-svcs">
+      <span class="msvc">E-Labs Copilot</span>
+      <span class="msvc">THE MACHINE</span>
+      <span class="msvc">AI Content Studio</span>
+      <span class="msvc">Hermes Agent</span>
+    </div>
+  </div>
+</div>
+
+<div class="sov" id="sov"></div>
+
+<!-- ════════════════ APP SHELL ════════════════ -->
+<div class="app-shell" id="shell">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar" id="sidebar" aria-label="Studio navigation">
+    <div class="sidebar-top">
+      <a href="https://www.elabsai.com" class="sidebar-brand" aria-label="E-Labs home">
+        <div class="brand-icon" aria-hidden="true">EL</div>
+        <div>
+          <div class="brand-name">E-Labs Studio</div>
+          <div class="brand-sub">AI Content Platform</div>
+        </div>
+      </a>
+      <div class="sidebar-section-lbl">Create</div>
+      <nav class="sidebar-nav" id="snav" aria-label="AI services">
+        <button class="snav-item" data-svc="upscale" data-tier="basic">
+          <span class="snav-icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v3M21 12h-3M12 21v-3M3 12h3"/></svg></span>
+          <span class="snav-text">Image Upscaler</span>
+          <span class="badge badge-live">Live</span>
+        </button>
+        <button class="snav-item" data-svc="voice" data-tier="basic">
+          <span class="snav-icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></span>
+          <span class="snav-text">Voice Clone &amp; TTS</span>
+          <span class="badge badge-live">Live</span>
+        </button>
+        <button class="snav-item locked" data-svc="talking-head" data-tier="pro">
+          <span class="snav-icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg></span>
+          <span class="snav-text">Talking Head</span>
+          <span class="badge badge-pro">Pro</span>
+        </button>
+        <button class="snav-item locked" data-svc="social-clip" data-tier="pro">
+          <span class="snav-icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="15" height="14" rx="2"/><polyline points="17 3 22 3 22 16"/></svg></span>
+          <span class="snav-text">Social Media Clip</span>
+          <span class="badge badge-pro">Pro</span>
+        </button>
+        <button class="snav-item locked" data-svc="explainer" data-tier="studio">
+          <span class="snav-icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>
+          <span class="snav-text">Explainer Video</span>
+          <span class="badge badge-soon">Soon</span>
+        </button>
+        <button class="snav-item locked" data-svc="commercial" data-tier="studio">
+          <span class="snav-icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></span>
+          <span class="snav-text">Commercial Video</span>
+          <span class="badge badge-soon">Soon</span>
+        </button>
+        <button class="snav-item locked" data-svc="pitch" data-tier="studio">
+          <span class="snav-icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+          <span class="snav-text">Pitch Deck Video</span>
+          <span class="badge badge-soon">Soon</span>
+        </button>
+        <button class="snav-item locked" data-svc="cinematic" data-tier="studio">
+          <span class="snav-icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg></span>
+          <span class="snav-text">Cinematic Scene</span>
+          <span class="badge badge-soon">Soon</span>
+        </button>
+      </nav>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="sidebar-acct" id="sacct">
+        <div class="acct-out" id="aout">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <span><span class="acct-link" id="sSignIn" role="button" tabindex="0">Sign in</span> to create</span>
+        </div>
+        <div class="acct-in" id="ain"></div>
+      </div>
+      <a href="#pricing" class="sfooter-link" id="pricingLink">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Plans &amp; Pricing
+      </a>
+      <a href="https://www.elabsai.com" class="sfooter-link">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        E-Labs Platform
+      </a>
+    </div>
+  </aside>
+
+  <!-- ── TOOL PANEL ── -->
+  <section class="tool-panel" aria-label="Content creation">
+    <!-- Mobile bar -->
+    <div class="mob-bar">
+      <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <a href="https://www.elabsai.com" class="sidebar-brand" style="text-decoration:none">
+        <div class="brand-icon" aria-hidden="true">EL</div>
+        <span class="brand-name">E-Labs Studio</span>
+      </a>
+      <button class="acct-btn" id="mobSI" style="flex:none;padding:7px 12px;font-size:.76rem">Sign In</button>
+    </div>
+    <!-- Tool header -->
+    <div class="tool-head">
+      <div class="breadcrumb" id="bc">
+        <a href="https://www.elabsai.com">E-Labs</a>
+        <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        <span>AI Content Studio</span>
+      </div>
+      <div class="tool-head-row">
+        <div class="tool-info">
+          <div class="tool-icon-box" id="tIcon" aria-hidden="true">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          </div>
+          <div>
+            <div class="tool-lbl">Service</div>
+            <div class="tool-name" id="tName">Select a service</div>
+          </div>
+        </div>
+        <button class="btn-ghost" id="hSI">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+          Sign In
+        </button>
+      </div>
+    </div>
+    <!-- Model row -->
+    <div class="model-row">
+      <div class="model-left">
+        <div class="model-chip" aria-hidden="true">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8M12 3v4"/></svg>
+        </div>
+        <div>
+          <div class="model-lbl">Engine</div>
+          <div class="model-name-txt" id="mName">E-Labs Inference Node</div>
+        </div>
+      </div>
+      <svg class="chevron" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+    <!-- Workspace -->
+    <div class="workspace" id="ws">
+      <!-- Welcome -->
+      <div class="ws-welcome" id="wsW">
+        <div class="eyebrow"><span class="pulse" aria-hidden="true"></span>8 AI services live on elabsai.com</div>
+        <h2>Create professional content<br><span class="grad">in minutes, not days.</span></h2>
+        <p class="ws-welcome-sub">Pick a service from the sidebar to get started. Image upscaling and voice cloning are available on the Basic plan.</p>
+        <div class="qchips">
+          <button class="qchip" data-svc="upscale">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v3M21 12h-3M12 21v-3M3 12h3"/></svg>
+            Image Upscaler
+          </button>
+          <button class="qchip" data-svc="voice">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
+            Voice Clone
+          </button>
+          <button class="qchip" data-svc="talking-head">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
+            Talking Head
+          </button>
+          <button class="qchip" data-svc="social-clip">
+            <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="15" height="14" rx="2"/><polyline points="17 3 22 3 22 16"/></svg>
+            Social Clip
+          </button>
+        </div>
+      </div>
+      <!-- Auth gate -->
+      <div class="auth-gate" id="wsA" style="display:none">
+        <div class="auth-gate-icon" aria-hidden="true">
+          <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        </div>
+        <h3>Sign in to generate</h3>
+        <p>Your E-Labs account gives you access to this service and all other AI Content Studio tools.</p>
+        <button class="btn-signin" id="agSI" style="margin-top:0">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+          Sign In with E-Labs Account
+        </button>
+      </div>
+      <!-- Form -->
+      <div class="ws-form" id="wsF" style="display:none">
+        <form id="jobForm" novalidate>
+          <div class="wcard">
+            <div class="wcard-title">Describe your content</div>
+            <div class="wcard-sub" id="jDesc">Enter a detailed description of what you want to generate.</div>
+            <textarea id="jPrompt" name="prompt" class="wfield" placeholder="Be specific — subject, action, style, mood..." required></textarea>
+          </div>
+          <div class="wcard" id="fStyle" style="display:none">
+            <div class="wcard-title">Style &amp; Tone</div>
+            <div class="wcard-sub">Select the voice style or visual tone.</div>
+            <div class="style-chips">
+              <label class="style-chip"><input type="radio" name="style" value="natural" checked><span>Natural</span></label>
+              <label class="style-chip"><input type="radio" name="style" value="professional"><span>Professional</span></label>
+              <label class="style-chip"><input type="radio" name="style" value="energetic"><span>Energetic</span></label>
+              <label class="style-chip"><input type="radio" name="style" value="calm"><span>Calm</span></label>
+              <label class="style-chip"><input type="radio" name="style" value="cinematic"><span>Cinematic</span></label>
+            </div>
+          </div>
+          <div class="wcard" id="fImage" style="display:none">
+            <div class="wcard-title">Image Reference</div>
+            <div class="wcard-sub" id="imgDesc">Provide an image for this service.</div>
+            <div class="dz" id="dzImg" role="button" tabindex="0" aria-label="Upload image or paste URL">
+              <div class="dz-icon" aria-hidden="true"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+              <div class="dz-title">Drop image here or <span style="color:var(--accent)">click to browse</span></div>
+              <div class="dz-sub">JPEG, PNG, WEBP &mdash; max 25 MB</div>
+              <div class="dz-fname" id="dzImgF"></div>
+              <input type="file" id="dzImgFile" accept="image/jpeg,image/png,image/webp">
+            </div>
+            <div class="dz-or">or paste URL</div>
+            <div class="url-row">
+              <svg class="url-icon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+              <input type="url" id="jImgUrl" name="image_url" class="url-input" placeholder="https://example.com/image.jpg">
+            </div>
+          </div>
+          <div class="wcard" id="fVoice" style="display:none">
+            <div class="wcard-title">Voice Reference <span style="font-size:.72rem;font-weight:500;color:var(--muted)">(optional)</span></div>
+            <div class="wcard-sub">Upload an audio sample to clone, or leave blank for the default voice.</div>
+            <div class="dz" id="dzVoice" role="button" tabindex="0" aria-label="Upload audio or paste URL">
+              <div class="dz-icon" aria-hidden="true"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div>
+              <div class="dz-title">Drop audio here or <span style="color:var(--accent)">click to browse</span></div>
+              <div class="dz-sub">MP3, WAV, M4A &mdash; max 50 MB</div>
+              <div class="dz-fname" id="dzVoiceF"></div>
+              <input type="file" id="dzVoiceFile" accept="audio/mpeg,audio/wav,audio/mp4,audio/m4a">
+            </div>
+            <div class="dz-or">or paste URL</div>
+            <div class="url-row">
+              <svg class="url-icon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
+              <input type="url" id="jVoiceUrl" name="voice_url" class="url-input" placeholder="https://example.com/voice-sample.mp3 (optional)">
+            </div>
+          </div>
+          <div class="form-err" id="jobErr" role="alert"></div>
+        </form>
+      </div>
+    </div>
+    <!-- Generate bar -->
+    <div class="gen-bar">
+      <div class="gen-opts">
+        <div class="q-chips">
+          <button class="q-chip on" data-q="720p">SD &middot; 720p</button>
+          <button class="q-chip" data-q="1080p">HD &middot; 1080p</button>
+        </div>
+        <span class="credit-badge" id="creditBadge">1 credit / gen</span>
+      </div>
+      <button class="btn-gen" id="genBtn" form="jobForm" type="submit" disabled>
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Generate
+        <svg class="gen-arrow" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- ── GALLERY ── -->
+  <section class="gallery" aria-label="Output gallery">
+    <div class="gallery-head">
+      <span class="gallery-head-title">Output</span>
+      <div class="gtabs">
+        <button class="gtab on">Latest</button>
+        <button class="gtab">History</button>
+      </div>
+    </div>
+    <div class="gallery-body" id="gb">
+      <div class="gw" id="gw">
+        <div class="gw-ring" aria-hidden="true"><svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
+        <div class="gw-title">Your output appears here</div>
+        <p class="gw-sub">Select a service, describe your content, and hit Generate.</p>
+        <div class="gw-feats">
+          <div class="gw-feat"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Serverless GPU &mdash; no setup</div>
+          <div class="gw-feat"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Output ready in 30&ndash;120 sec</div>
+          <div class="gw-feat"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Download in full quality</div>
+        </div>
+      </div>
+      <div class="out-panel" id="out">
+        <div class="out-bar">
+          <span class="status-pill" id="sPill"><span class="sdot" id="sDot"></span><span id="sTxt">Queued</span></span>
+          <span class="job-lbl">Job: <code id="jId"></code></span>
+        </div>
+        <div class="out-media" id="oMedia"></div>
+        <div class="out-log" id="oLog"></div>
+        <div class="out-dl" id="oDl"><button class="btn-dl" id="dlBtn"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Download Result</button></div>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /.app-shell -->
+
+<!-- ════════════════ PRICING ════════════════ -->
+<div id="pricing" style="display:none">
+  <section class="pricing-outer">
+    <div class="container">
+      <span class="sec-pill">Pricing</span>
+      <h2 class="sec-h">Simple, transparent<br><span class="grad">subscription pricing.</span></h2>
+      <p class="sec-sub">All plans include serverless GPU access &mdash; no hardware, no setup required. Cancel anytime.</p>
+      <div class="p-grid">
+        <div class="pc">
+          <div class="pc-tier">Basic</div>
+          <div class="pc-name">Content Basic</div>
+          <div class="pc-price">$49</div>
+          <div class="pc-period">/ month</div>
+          <div class="pc-gens">100 generations / mo</div>
+          <hr class="pc-hr">
+          <ul class="pc-feats">
+            <li><span class="ck">&#10003;</span> AI Image Upscaler (STAR)</li>
+            <li><span class="ck">&#10003;</span> Voice Clone &amp; TTS (F5-TTS)</li>
+            <li><span class="ck">&#10003;</span> 16 GB VRAM pool</li>
+            <li><span class="ck">&#10003;</span> Shared flex GPU</li>
+            <li><span class="lck">&#9679;</span> <span class="dim">Talking Head Video</span></li>
+            <li><span class="lck">&#9679;</span> <span class="dim">Social Media Clips</span></li>
+          </ul>
+          <a href="/api/billing/checkout?product=content-studio&amp;tier=basic" class="pc-cta cta-a">Get Started &rarr;</a>
+        </div>
+        <div class="pc rec">
+          <div class="pc-pop">Most Popular</div>
+          <div class="pc-tier">Pro</div>
+          <div class="pc-name">Content Pro</div>
+          <div class="pc-price">$149</div>
+          <div class="pc-period">/ month</div>
+          <div class="pc-gens">300 generations / mo</div>
+          <hr class="pc-hr">
+          <ul class="pc-feats">
+            <li><span class="ck">&#10003;</span> Everything in Basic</li>
+            <li><span class="ck">&#10003;</span> Talking Head Video</li>
+            <li><span class="ck">&#10003;</span> Social Media Clips</li>
+            <li><span class="ck">&#10003;</span> 24 GB VRAM pool</li>
+            <li><span class="ck">&#10003;</span> Shared flex GPU</li>
+            <li><span class="lck">&#9679;</span> <span class="dim">Explainer &amp; Commercial</span></li>
+          </ul>
+          <a href="/api/billing/checkout?product=content-studio&amp;tier=pro" class="pc-cta cta-r">Get Started &rarr;</a>
+        </div>
+        <div class="pc">
+          <div class="pc-tier">Studio</div>
+          <div class="pc-name">Studio</div>
+          <div class="pc-price">$499</div>
+          <div class="pc-period">/ month</div>
+          <div class="pc-gens">1,000 generations / mo</div>
+          <hr class="pc-hr">
+          <ul class="pc-feats">
+            <li><span class="ck">&#10003;</span> All 8 AI services</li>
+            <li><span class="ck">&#10003;</span> Explainer &amp; Commercial Video</li>
+            <li><span class="ck">&#10003;</span> Pitch Deck &amp; Cinematic</li>
+            <li><span class="ck">&#10003;</span> 48 GB VRAM pool</li>
+            <li><span class="ck">&#10003;</span> Priority queue</li>
+            <li><span class="ck">&#10003;</span> Team access (5 seats)</li>
+          </ul>
+          <a href="/api/billing/checkout?product=content-studio&amp;tier=studio" class="pc-cta cta-a">Get Started &rarr;</a>
+        </div>
+        <div class="pc">
+          <div class="pc-tier">Enterprise</div>
+          <div class="pc-name">Enterprise</div>
+          <div class="pc-price-custom">Custom</div>
+          <div class="pc-period">volume pricing</div>
+          <div class="pc-gens">Unlimited &mdash; dedicated GPU</div>
+          <hr class="pc-hr">
+          <ul class="pc-feats">
+            <li><span class="ck">&#10003;</span> Dedicated GPU (160 GB VRAM)</li>
+            <li><span class="ck">&#10003;</span> All 8 AI services</li>
+            <li><span class="ck">&#10003;</span> SLA &amp; uptime guarantee</li>
+            <li><span class="ck">&#10003;</span> Custom workflow integration</li>
+            <li><span class="ck">&#10003;</span> Unlimited team seats</li>
+            <li><span class="ck">&#10003;</span> White-label option</li>
+          </ul>
+          <a href="https://www.elabsai.com/#contact" class="pc-cta cta-s">Contact Sales</a>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="sub-sec">
+    <div class="container">
+      <div class="sub-card">
+        <span class="sec-pill" style="display:inline-block;margin-bottom:18px">Get Started Today</span>
+        <h2>Ready to start creating?</h2>
+        <p>Get your AI Content Studio account in minutes. Serverless GPU &mdash; no hardware, no setup.</p>
+        <div class="sub-btns">
+          <a href="https://www.elabsai.com/#contact" class="btn-cta-a">Contact Us to Subscribe <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+          <button class="btn-cta-b" id="subSI">Sign In</button>
+        </div>
+        <p style="margin-top:16px;font-size:.74rem;color:var(--muted)">No long-term contract. Cancel any time. Enterprise? <a href="https://www.elabsai.com/#contact" style="color:var(--accent)">Contact sales.</a></p>
+      </div>
+    </div>
+  </section>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p>&copy; 2026 E-Labs AI Integration &mdash; <a href="https://www.elabsai.com">elabsai.com</a></p>
+      <p><a href="https://www.elabsai.com">Platform</a> &middot; <a href="https://www.elabsai.com/#products">Products</a> &middot; <a href="https://www.elabsai.com/#contact">Contact</a></p>
+    </div>
+  </footer>
+</div>
+
+<script>
+'use strict';
+var AUTH_URL = (location.hostname==='localhost'||location.hostname==='127.0.0.1')
+  ? 'http://127.0.0.1:8001' : 'https://copilot.elabsai.com';
+var API_URL  = (location.hostname==='localhost'||location.hostname==='127.0.0.1')
+  ? 'http://127.0.0.1:8000' : 'https://api.elabsai.com';
+var TK = 'elabs_token';
+
+var SVCS = {
+  'upscale':      {label:'Image Upscaler',    engine:'STAR v2 \u00b7 16 GB',    vram:16, credit:1, desc:'Upscale images up to 4\u00d7 with STAR model. Crisp details, no ringing.',                        fields:['prompt','image']},
+  'voice':        {label:'Voice Clone & TTS', engine:'F5-TTS \u00b7 8 GB',      vram:8,  credit:1, desc:'Enter your script and optionally upload a reference audio to clone with F5-TTS.',                fields:['prompt','style','voice']},
+  'talking-head': {label:'Talking Head',      engine:'SadTalker \u00b7 24 GB',  vram:24, credit:2, desc:'Provide a portrait image and a script for a lip-synced talking-head video.',                     fields:['prompt','style','image']},
+  'social-clip':  {label:'Social Media Clip', engine:'WAN 2.2 \u00b7 24 GB',    vram:24, credit:2, desc:'Enter a script or topic \u2014 the AI produces a short-form vertical video for Reels, TikTok, Shorts.', fields:['prompt','style']},
+  'explainer':    {label:'Explainer Video',   engine:'WAN 2.2 \u00b7 48 GB',    vram:48, credit:4, desc:'Describe your product or concept for a full explainer video with professional voiceover.',        fields:['prompt','style']},
+  'commercial':   {label:'Commercial Video',  engine:'WAN 2.2 \u00b7 48 GB',    vram:48, credit:4, desc:'Describe your brand and message for a 30\u201360 second broadcast-ready commercial clip.',        fields:['prompt','style']},
+  'pitch':        {label:'Pitch Deck Video',  engine:'WAN 2.2 \u00b7 48 GB',    vram:48, credit:4, desc:'Describe your pitch for a polished investor/client video with presenter narration.',              fields:['prompt','style']},
+  'cinematic':    {label:'Cinematic Scene',   engine:'WAN 2.2 \u00b7 48 GB',    vram:48, credit:4, desc:'Write a cinematic prompt for a dramatic scene with lighting, depth, and camera movement.',        fields:['prompt','style']}
+};
+
+var tok = sessionStorage.getItem(TK);
+var signedIn = !!tok;
+var activeSvc = null;
+var pollT = null;
+
+(function init(){
+  // Pricing link
+  document.getElementById('pricingLink').addEventListener('click',function(e){
+    e.preventDefault(); showPricing();
+  });
+  document.getElementById('subSI').addEventListener('click', openModal);
+  // Mobile
+  document.getElementById('menuBtn').addEventListener('click', openSidebar);
+  document.getElementById('sov').addEventListener('click', closeSidebar);
+  document.getElementById('mobSI').addEventListener('click', openModal);
+  // Nav
+  document.querySelectorAll('.snav-item').forEach(function(b){
+    b.addEventListener('click',function(){
+      if(b.classList.contains('locked')){showPricing();return;}
+      selectSvc(b.dataset.svc); closeSidebar();
+    });
+  });
+  // Quick chips
+  document.querySelectorAll('.qchip').forEach(function(c){
+    c.addEventListener('click',function(){
+      var id=c.dataset.svc, b=document.querySelector('.snav-item[data-svc="'+id+'"]');
+      if(b&&b.classList.contains('locked')){showPricing();return;}
+      selectSvc(id);
+    });
+  });
+  // Quality chips
+  document.querySelectorAll('.q-chip').forEach(function(c){
+    c.addEventListener('click',function(){
+      document.querySelectorAll('.q-chip').forEach(function(x){x.classList.remove('on');});
+      c.classList.add('on');
+    });
+  });
+  // Gallery tabs
+  document.querySelectorAll('.gtab').forEach(function(t){
+    t.addEventListener('click',function(){
+      document.querySelectorAll('.gtab').forEach(function(x){x.classList.remove('on');});
+      t.classList.add('on');
+    });
+  });
+  // Modal
+  document.getElementById('mc').addEventListener('click', closeModal);
+  document.getElementById('loginModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+  document.getElementById('loginForm').addEventListener('submit', handleLogin);
+  document.getElementById('hSI').addEventListener('click', openModal);
+  document.getElementById('sSignIn').addEventListener('click', openModal);
+  document.getElementById('sSignIn').addEventListener('keydown',function(e){if(e.key==='Enter')openModal();});
+  document.getElementById('agSI').addEventListener('click', openModal);
+  // Job form
+  document.getElementById('jobForm').addEventListener('submit', handleSubmit);
+  // Drop zones
+  setupDz('dzImg','dzImgFile','dzImgF');
+  setupDz('dzVoice','dzVoiceFile','dzVoiceF');
+  // Keyboard close
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
+  if(signedIn) fetchAcct();
+  syncAuthUI();
+})();
+
+function syncAuthUI(){
+  var btn=document.getElementById('hSI');
+  var mob=document.getElementById('mobSI');
+  if(signedIn){
+    btn.textContent='My Account'; btn.onclick=null;
+    mob.textContent='Account'; mob.onclick=null;
+  }
+}
+
+// Modal
+function openModal(){
+  document.getElementById('loginModal').classList.add('open');
+  setTimeout(function(){document.getElementById('mu').focus();},100);
+}
+function closeModal(){
+  document.getElementById('loginModal').classList.remove('open');
+  document.getElementById('modalErr').classList.remove('show');
+  document.getElementById('loginForm').reset();
+}
+
+async function handleLogin(e){
+  e.preventDefault();
+  var u=document.getElementById('mu').value.trim();
+  var p=document.getElementById('mp').value;
+  var errEl=document.getElementById('modalErr');
+  var btn=document.getElementById('ms');
+  errEl.classList.remove('show');
+  if(!u||!p){errEl.textContent='Please enter your username and password.';errEl.classList.add('show');return;}
+  btn.disabled=true; btn.textContent='Signing in\u2026';
+  try{
+    var r=await fetch(AUTH_URL+'/api/auth/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:u,password:p}),
+      credentials:'include'
+    });
+    if(r.ok){
+      var d=await r.json();
+      tok=d.access_token||'';
+      sessionStorage.setItem(TK,tok);
+      signedIn=true;
+      closeModal(); syncAuthUI(); fetchAcct();
+      if(activeSvc) selectSvc(activeSvc);
+    } else {
+      var err=await r.json().catch(function(){return{};});
+      errEl.textContent=err.detail||'Invalid credentials. Please try again.';
+      errEl.classList.add('show');
+    }
+  } catch(_){
+    errEl.textContent='Backend unreachable. Please try again later.';
+    errEl.classList.add('show');
+  } finally {
+    btn.disabled=false; btn.textContent='Sign In';
+  }
+}
+
+// Account
+async function fetchAcct(){
+  try{
+    var r=await fetch(API_URL+'/api/v1/users/me',{headers:{'Authorization':'Bearer '+tok}});
+    if(!r.ok) return;
+    var d=await r.json();
+    var plan=(d.subscription_plan||'basic').toLowerCase();
+    var lim=d.generation_limit||100;
+    var used=d.generation_used||0;
+    var left=Math.max(0,lim-used);
+    document.getElementById('aout').style.display='none';
+    var el=document.getElementById('ain');
+    el.style.display='flex';
+    el.innerHTML='<span class="plan-badge p-'+plan+'">'+cap(plan)+' Plan</span>'
+      +'<span class="acct-gens"><strong>'+left+'</strong> / '+lim+' gens left</span>'
+      +'<div class="acct-actions">'
+      +'<a href="#pricing" class="acct-btn" onclick="showPricing();return false;">Upgrade</a>'
+      +'<button class="acct-btn" onclick="signOut()">Sign Out</button>'
+      +'</div>';
+    unlockForPlan(plan);
+  } catch(_){
+    document.getElementById('aout').style.display='none';
+    document.getElementById('ain').style.display='flex';
+    document.getElementById('ain').innerHTML='<span style="font-size:.73rem;color:var(--muted)">Signed in.</span>';
+  }
+}
+
+function unlockForPlan(plan){
+  var r={basic:1,pro:2,studio:3,enterprise:4};
+  var tr={basic:1,pro:2,studio:3};
+  var rank=r[plan]||0;
+  document.querySelectorAll('.snav-item').forEach(function(b){
+    if((tr[b.dataset.tier]||0)<=rank) b.classList.remove('locked');
+  });
+}
+
+function signOut(){sessionStorage.removeItem(TK);tok=null;signedIn=false;location.reload();}
+
+// Service selection
+function selectSvc(id){
+  activeSvc=id;
+  var s=SVCS[id]; if(!s) return;
+  document.querySelectorAll('.snav-item').forEach(function(b){b.classList.remove('active');});
+  var ab=document.querySelector('.snav-item[data-svc="'+id+'"]');
+  if(ab) ab.classList.add('active');
+  var iconH=ab?ab.querySelector('.snav-icon').innerHTML:'';
+  document.getElementById('tIcon').innerHTML=iconH;
+  document.getElementById('tIcon').classList.add('lit');
+  document.getElementById('tName').textContent=s.label;
+  document.getElementById('bc').innerHTML=
+    '<a href="https://www.elabsai.com">E-Labs</a>'
+    +'<svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'
+    +'AI Content Studio'
+    +'<svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'
+    +'<span>'+esc(s.label)+'</span>';
+  document.getElementById('mName').textContent=s.engine;
+  document.getElementById('creditBadge').textContent=s.credit+(s.credit===1?' credit / gen':' credits / gen');
+  document.getElementById('wsW').style.display='none';
+  document.getElementById('jobErr').classList.remove('show');
+  if(!signedIn){
+    document.getElementById('wsA').style.display='';
+    document.getElementById('wsF').style.display='none';
+    document.getElementById('genBtn').disabled=true;
+    return;
+  }
+  document.getElementById('wsA').style.display='none';
+  document.getElementById('wsF').style.display='';
+  document.getElementById('jDesc').innerHTML=s.desc;
+  document.getElementById('fStyle').style.display=s.fields.includes('style')?'':'none';
+  document.getElementById('fImage').style.display=s.fields.includes('image')?'':'none';
+  document.getElementById('fVoice').style.display=s.fields.includes('voice')?'':'none';
+  if(s.fields.includes('image'))
+    document.getElementById('imgDesc').textContent=id==='upscale'
+      ?'Provide the image you want to upscale (JPEG, PNG, or WEBP).'
+      :'Provide a portrait image for the talking-head animation.';
+  document.getElementById('out').classList.remove('show');
+  document.getElementById('gw').style.display='';
+  document.getElementById('jPrompt').value='';
+  document.getElementById('genBtn').disabled=false;
+}
+
+// Job submission
+async function handleSubmit(e){
+  e.preventDefault();
+  if(!activeSvc||!signedIn) return;
+  var s=SVCS[activeSvc];
+  var prompt=document.getElementById('jPrompt').value.trim();
+  var styleEl=document.querySelector('input[name="style"]:checked');
+  var style=styleEl?styleEl.value:'natural';
+  var imgUrl=document.getElementById('jImgUrl').value.trim();
+  var voiceUrl=document.getElementById('jVoiceUrl').value.trim();
+  var errEl=document.getElementById('jobErr');
+  errEl.classList.remove('show');
+  if(!prompt){errEl.textContent='Please enter a prompt or description.';errEl.classList.add('show');return;}
+  if(s.fields.includes('image')&&!imgUrl){errEl.textContent='An image URL is required for this service.';errEl.classList.add('show');return;}
+  var btn=document.getElementById('genBtn');
+  btn.disabled=true;
+  btn.innerHTML='<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Submitting\u2026';
+  var quality=(document.querySelector('.q-chip.on')||{}).dataset||{};
+  var payload={
+    openclaw_family:activeSvc,
+    template_id:'studio-'+activeSvc,
+    duration_minutes:60,
+    required_vram_gb:s.vram,
+    comfy_api_graph:null,
+    metadata:{
+      prompt:prompt,
+      style:s.fields.includes('style')?style:undefined,
+      image_url:s.fields.includes('image')?imgUrl:undefined,
+      voice_url:(s.fields.includes('voice')&&voiceUrl)?voiceUrl:undefined,
+      quality:quality.q||'720p'
+    }
+  };
+  try{
+    var r=await fetch(API_URL+'/api/v1/jobs',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify(payload)
+    });
+    if(!r.ok){var er=await r.json().catch(function(){return{};});throw new Error(er.detail||'Server error '+r.status);}
+    var job=await r.json();
+    var jid=job.id||job.job_id;
+    showOut(jid,'queued');
+    startPoll(jid);
+  } catch(ex){
+    errEl.textContent=ex.message||'Failed to submit job. Please try again.';
+    errEl.classList.add('show');
+  } finally {
+    btn.disabled=false;
+    btn.innerHTML='<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg> Generate <svg class="gen-arrow" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+  }
+}
+
+function showOut(jid,status){
+  document.getElementById('gw').style.display='none';
+  document.getElementById('out').classList.add('show');
+  document.getElementById('jId').textContent=jid;
+  setStat(status);
+  document.getElementById('oLog').textContent='';
+  document.getElementById('oDl').classList.remove('show');
+  document.getElementById('oMedia').classList.remove('show');
+}
+function setStat(s){
+  document.getElementById('sPill').className='status-pill s-'+s;
+  document.getElementById('sDot').className='sdot sdot-'+s;
+  document.getElementById('sTxt').textContent=cap(s);
+}
+function startPoll(jid){
+  if(pollT) clearInterval(pollT);
+  pollT=setInterval(async function(){
+    try{
+      var r=await fetch(API_URL+'/api/v1/jobs/'+jid,{headers:{'Authorization':'Bearer '+tok}});
+      if(!r.ok) return;
+      var job=await r.json();
+      var s=(job.status||'').toLowerCase();
+      setStat(s);
+      if(job.log_lines&&job.log_lines.length)
+        document.getElementById('oLog').innerHTML=job.log_lines.map(function(l){return '<div>'+esc(l)+'</div>';}).join('');
+      if(s==='completed'){
+        clearInterval(pollT);
+        document.getElementById('oLog').insertAdjacentHTML('beforeend','<div style="color:var(--green);margin-top:4px">\u2713 Generation complete.</div>');
+        if(job.output_url){
+          var isV=/\.(mp4|mov|webm)(\?|$)/i.test(job.output_url);
+          var med=document.getElementById('oMedia');
+          med.innerHTML=isV?'<video src="'+esc(job.output_url)+'" controls playsinline></video>':'<img src="'+esc(job.output_url)+'" alt="Generated output">';
+          med.classList.add('show');
+          document.getElementById('oDl').classList.add('show');
+          document.getElementById('dlBtn').onclick=function(){window.open(job.output_url,'_blank');};
+        }
+      } else if(s==='failed'){
+        clearInterval(pollT);
+        document.getElementById('oLog').insertAdjacentHTML('beforeend','<div style="color:#fca5a5;margin-top:4px">\u2715 Job failed. '+esc(job.error_message||'')+'</div>');
+      }
+    } catch(_){}
+  },5000);
+}
+
+// Drop zones
+function setupDz(dzId,fileId,fnId){
+  var dz=document.getElementById(dzId);
+  var fi=document.getElementById(fileId);
+  var fn=document.getElementById(fnId);
+  if(!dz) return;
+  dz.addEventListener('click',function(){fi.click();});
+  dz.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' ')fi.click();});
+  fi.addEventListener('change',function(){
+    if(fi.files&&fi.files[0]){fn.textContent=fi.files[0].name;fn.style.display='block';dz.style.borderColor='rgba(108,99,255,.55)';}
+  });
+  dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('over');});
+  dz.addEventListener('dragleave',function(){dz.classList.remove('over');});
+  dz.addEventListener('drop',function(e){
+    e.preventDefault();dz.classList.remove('over');
+    var f=e.dataTransfer.files[0];
+    if(f){fn.textContent=f.name;fn.style.display='block';dz.style.borderColor='rgba(108,99,255,.55)';}
+  });
+}
+
+// Mobile sidebar
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sov').classList.add('vis');document.body.style.overflow='hidden';}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sov').classList.remove('vis');document.body.style.overflow='';}
+
+// Pricing
+function showPricing(){
+  var el=document.getElementById('pricing');
+  el.style.display='block';
+  document.body.classList.add('pricing-on');
+  setTimeout(function(){el.scrollIntoView({behavior:'smooth'});},50);
+}
+
+// Helpers
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+</script>
+</body>
+</html>
