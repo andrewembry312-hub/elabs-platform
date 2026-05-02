@@ -60,6 +60,9 @@ _ADMIN_BOOTSTRAP_PASSWORD     = os.environ.get("ELABS_ADMIN_PASS", "")  # empty 
 # GitHub OAuth config
 _GITHUB_CLIENT_ID     = os.environ.get("GITHUB_CLIENT_ID", "")
 _GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "")
+# Google OAuth config
+_GOOGLE_CLIENT_ID     = os.environ.get("GOOGLE_CLIENT_ID", "")
+_GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 _ALLOWED_REDIRECT_HOST = ".elabsai.com"  # only redirect to *.elabsai.com after OAuth
 
 # DB path: same directory as app.py
@@ -541,6 +544,144 @@ async def github_callback(code: str = "", state: str = "", response: Response = 
                         break
 
     user = _upsert_github_user(github_id, login, email)
+    access_token  = _create_access_token(user["id"], user["role"])
+    refresh_token = _create_refresh_token(user["id"])
+
+    redirect_resp = _RedirectResponse(redirect_to, status_code=302)
+    redirect_resp.set_cookie(
+        key=_REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=_REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        path="/api/auth",
+    )
+    _set_access_cookie(redirect_resp, access_token)
+    return redirect_resp
+
+
+# ──────────────────────────────────────────
+# Google OAuth — E-Labs Account SSO
+# ──────────────────────────────────────────
+# Register a Google OAuth App at https://console.cloud.google.com/apis/credentials
+# Callback URL: https://copilot.elabsai.com/api/auth/google/callback
+# Env vars required: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+# ──────────────────────────────────────────
+
+def _ensure_google_column():
+    """Add google_id column to users table if not present (migration)."""
+    conn = _get_db()
+    try:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if "google_id" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN google_id TEXT")
+            conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_google_column()
+
+
+def _upsert_google_user(google_id: str, name: str, email: str) -> sqlite3.Row:
+    """Find or create a user for this Google identity."""
+    conn = _get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM users WHERE google_id = ?", (google_id,)
+        ).fetchone()
+        if row:
+            conn.execute(
+                "UPDATE users SET last_login = ? WHERE id = ?",
+                (datetime.now(timezone.utc).isoformat(), row["id"]),
+            )
+            conn.commit()
+            return conn.execute("SELECT * FROM users WHERE id = ?", (row["id"],)).fetchone()
+        # New user — create account with role=client
+        username = (email.split("@")[0] if email else name or f"google_{google_id}").replace(" ", "_")
+        conn.execute(
+            """INSERT INTO users (username, email, hashed_password, role, created_at, google_id)
+               VALUES (?, ?, '', 'client', ?, ?)""",
+            (username, email or "", datetime.now(timezone.utc).isoformat(), google_id),
+        )
+        conn.commit()
+        return conn.execute("SELECT * FROM users WHERE google_id = ?", (google_id,)).fetchone()
+    finally:
+        conn.close()
+
+
+@router.get("/google")
+def google_login(redirect: str = "https://www.elabsai.com"):
+    """Redirect the browser to Google to begin OAuth. Pass ?redirect= to return after login."""
+    if not _GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Google OAuth not configured (GOOGLE_CLIENT_ID missing)")
+    state = _github_state_encode(redirect)  # reuse same HMAC-signed state helper
+    scope = "openid email profile"
+    url = (
+        "https://accounts.google.com/o/oauth2/v2/auth"
+        f"?client_id={_GOOGLE_CLIENT_ID}"
+        "&response_type=code"
+        f"&redirect_uri=https://copilot.elabsai.com/api/auth/google/callback"
+        f"&scope={scope.replace(' ', '%20')}"
+        f"&state={state}"
+        "&access_type=online"
+        "&prompt=select_account"
+    )
+    return _RedirectResponse(url)
+
+
+@router.get("/google/callback")
+async def google_callback(code: str = "", state: str = "", response: Response = None):
+    """Google calls this after authorization. Issues JWT and redirects back."""
+    if not _GOOGLE_CLIENT_ID or not _GOOGLE_CLIENT_SECRET:
+        raise HTTPException(status_code=503, detail="Google OAuth not configured")
+    if not _httpx:
+        raise HTTPException(status_code=503, detail="httpx is required: pip install httpx")
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing OAuth code")
+
+    redirect_to = _github_state_decode(state) if state else "https://www.elabsai.com"
+
+    async with _httpx.AsyncClient() as client:
+        # Exchange code for tokens
+        token_resp = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": _GOOGLE_CLIENT_ID,
+                "client_secret": _GOOGLE_CLIENT_SECRET,
+                "redirect_uri": "https://copilot.elabsai.com/api/auth/google/callback",
+                "grant_type": "authorization_code",
+            },
+            headers={"Accept": "application/json"},
+            timeout=10,
+        )
+        if token_resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Google token exchange failed")
+        token_data = token_resp.json()
+        g_access = token_data.get("access_token", "")
+        if not g_access:
+            raise HTTPException(status_code=502, detail="Google did not return an access token")
+
+        # Fetch user info
+        user_resp = await client.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {g_access}"},
+            timeout=10,
+        )
+        if user_resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Failed to fetch Google user profile")
+        g_user = user_resp.json()
+
+    google_id = str(g_user.get("sub", ""))
+    email     = g_user.get("email", "")
+    name      = g_user.get("name", "") or g_user.get("given_name", "")
+
+    if not google_id:
+        raise HTTPException(status_code=502, detail="Google profile missing sub claim")
+
+    user = _upsert_google_user(google_id, name, email)
     access_token  = _create_access_token(user["id"], user["role"])
     refresh_token = _create_refresh_token(user["id"])
 
