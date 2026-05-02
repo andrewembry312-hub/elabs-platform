@@ -240,9 +240,86 @@ footer {
   .stats { flex-direction: column; }
   .stat { border-right: none; border-bottom: 1px solid var(--border); }
 }
+
+/* ── E-LABS ACCOUNT MODAL ── */
+.el-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:9999;align-items:center;justify-content:center;padding:20px}
+.el-overlay.open{display:flex}
+.el-modal{background:#111118;border:1px solid rgba(108,99,255,.28);border-radius:20px;padding:36px 32px;width:100%;max-width:400px;box-shadow:0 8px 60px rgba(0,0,0,.6),0 0 80px rgba(108,99,255,.12);position:relative;animation:el-in .2s ease}
+@keyframes el-in{from{opacity:0;transform:translateY(-12px) scale(.97)}to{opacity:1;transform:none}}
+.el-close{position:absolute;top:14px;right:14px;background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px;display:flex;align-items:center;transition:all .15s}
+.el-close:hover{color:var(--text);background:var(--bg3,#16161f)}
+.el-logo{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+.el-logo-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#38bdf8);display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:900;color:#fff;box-shadow:0 0 20px rgba(108,99,255,.4)}
+.el-logo-name{font-size:1rem;font-weight:800;color:var(--text)}
+.el-logo-sub{font-size:.7rem;color:var(--muted);margin-top:1px}
+.el-h{font-size:1.2rem;font-weight:900;margin-bottom:5px;color:var(--text)}
+.el-sub{font-size:.82rem;color:var(--muted);margin-bottom:20px;line-height:1.55}
+.el-err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.22);color:#fca5a5;font-size:.81rem;padding:9px 13px;border-radius:9px;margin-bottom:14px;display:none}
+.el-err.show{display:block}
+.el-gh-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 16px;background:#24292e;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:11px;font-size:.88rem;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;transition:background .15s;margin-bottom:14px}
+.el-gh-btn:hover{background:#2d333b}
+.el-or{display:flex;align-items:center;gap:10px;font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px}
+.el-or::before,.el-or::after{content:'';flex:1;height:1px;background:var(--border,#1e1e2e)}
+.el-field{margin-bottom:14px}
+.el-field label{display:block;font-size:.79rem;font-weight:600;color:var(--muted);margin-bottom:5px}
+.el-field input{width:100%;padding:10px 13px;border-radius:9px;background:#16161f;border:1px solid var(--border2,#2a2a3e);color:var(--text);font-family:inherit;font-size:.87rem;transition:border-color .2s,box-shadow .2s}
+.el-field input:focus{outline:none;border-color:rgba(108,99,255,.5);box-shadow:0 0 0 3px rgba(108,99,255,.12)}
+.el-field input::placeholder{color:var(--muted)}
+.el-submit{width:100%;padding:12px 24px;margin-top:6px;background:linear-gradient(135deg,var(--accent),#38bdf8);color:#fff;border:none;border-radius:11px;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;transition:transform .18s,box-shadow .18s,opacity .18s;box-shadow:0 0 24px rgba(108,99,255,.3)}
+.el-submit:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 32px rgba(108,99,255,.45)}
+.el-submit:disabled{opacity:.5;cursor:not-allowed}
+.el-footer{text-align:center;margin-top:14px;font-size:.78rem;color:var(--muted)}
+.el-footer a{color:var(--accent);text-decoration:none}
+.el-footer a:hover{color:#a5b4fc}
+.el-svcs{display:flex;flex-wrap:wrap;gap:5px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border,#1e1e2e)}
+.el-svc{font-size:.67rem;font-weight:600;padding:3px 9px;border-radius:999px;background:rgba(108,99,255,.07);border:1px solid rgba(108,99,255,.15);color:var(--muted)}
 </style>
 </head>
 <body>
+
+<!-- ══════════════ E-LABS ACCOUNT MODAL ══════════════ -->
+<div class="el-overlay" id="elModal" role="dialog" aria-modal="true" aria-labelledby="elMH">
+  <div class="el-modal">
+    <button class="el-close" id="elClose" aria-label="Close">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="el-logo">
+      <div class="el-logo-icon">EL</div>
+      <div>
+        <div class="el-logo-name">E-Labs Platform</div>
+        <div class="el-logo-sub">E-Labs Account</div>
+      </div>
+    </div>
+    <h2 class="el-h" id="elMH">Sign in to your account</h2>
+    <p class="el-sub">One account for Copilot, The Machine, AI Studio, and all E-Labs services.</p>
+    <div class="el-err" id="elErr" role="alert"></div>
+    <a class="el-gh-btn" href="javascript:void(0)" id="elGhBtn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      Continue with GitHub
+    </a>
+    <div class="el-or">or</div>
+    <form id="elForm" novalidate>
+      <div class="el-field">
+        <label for="elU">Username or Email</label>
+        <input type="text" id="elU" name="username" placeholder="your-username" autocomplete="username" required>
+      </div>
+      <div class="el-field">
+        <label for="elP">Password</label>
+        <input type="password" id="elP" name="password" placeholder="••••••••••" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="el-submit" id="elSubmit">Sign In</button>
+    </form>
+    <div class="el-footer">
+      <p>No account? <a href="https://www.elabsai.com/#contact">Request access</a></p>
+    </div>
+    <div class="el-svcs">
+      <span class="el-svc">E-Labs Copilot</span>
+      <span class="el-svc">THE MACHINE</span>
+      <span class="el-svc">AI Content Studio</span>
+      <span class="el-svc">Hermes Agent</span>
+    </div>
+  </div>
+</div>
 
 <!-- ── NAV ─────────────────────────────────────────────────────────────────── -->
 <nav>
@@ -256,8 +333,8 @@ footer {
     <a href="https://andrewembry312-hub.github.io/E-Labs-Consulting/" target="_blank" rel="noopener">Consulting</a>
   </div>
   <div class="nav-right">
-    <a class="btn-ghost" href="https://copilot.elabsai.com/login" target="_blank">Log in</a>
-    <a class="btn-nav-cta" href="https://copilot.elabsai.com" target="_blank">Launch App ↗</a>
+    <button class="btn-ghost" id="elLoginBtn" onclick="openElModal()">Log in</button>
+    <a class="btn-nav-cta" href="https://copilot.elabsai.com">Launch App ↗</a>
   </div>
 </nav>
 
@@ -309,7 +386,7 @@ footer {
         <span class="tag">Chat</span><span class="tag">Multi-agent</span><span class="tag">Memory</span><span class="tag">Streaming</span>
       </div>
       <div class="card-action">
-        <a class="btn btn-primary btn-sm" href="https://copilot.elabsai.com" target="_blank" rel="noopener">Launch Copilot ↗</a>
+        <a class="btn btn-primary btn-sm" href="https://copilot.elabsai.com">Launch Copilot ↗</a>
       </div>
     </div>
 
@@ -574,7 +651,7 @@ footer {
             <li><span class="cross">–</span> ComfyUI / Hermes</li>
           </ul>
           <div class="tier-cta">
-            <a class="btn btn-outline btn-sm" href="https://copilot.elabsai.com" target="_blank">Get started free</a>
+            <a class="btn btn-outline btn-sm" href="https://copilot.elabsai.com">Get started free</a>
           </div>
         </div>
 
@@ -593,7 +670,7 @@ footer {
             <li><span class="cross">–</span> Team workspace</li>
           </ul>
           <div class="tier-cta">
-            <a class="btn btn-primary btn-sm" href="/api/billing/checkout?product=copilot&tier=pro" target="_blank">Subscribe — $19/mo</a>
+            <a class="btn btn-primary btn-sm" href="https://copilot.elabsai.com/api/billing/checkout?product=copilot&tier=pro">Subscribe — $19/mo</a>
           </div>
         </div>
 
@@ -612,7 +689,7 @@ footer {
             <li><span class="cross">–</span> SSO / SAML</li>
           </ul>
           <div class="tier-cta">
-            <a class="btn btn-primary btn-sm" href="/api/billing/checkout?product=copilot&tier=team" target="_blank">Subscribe — $49/mo</a>
+            <a class="btn btn-primary btn-sm" href="https://copilot.elabsai.com/api/billing/checkout?product=copilot&tier=team">Subscribe — $49/mo</a>
           </div>
         </div>
 
@@ -639,7 +716,7 @@ footer {
             <li><span class="cross">–</span> OpenClaw runtime</li>
           </ul>
           <div class="tier-cta">
-            <a class="btn btn-primary btn-sm" href="/api/billing/checkout?product=machine&tier=starter" target="_blank">Subscribe — $29/mo</a>
+            <a class="btn btn-primary btn-sm" href="https://copilot.elabsai.com/api/billing/checkout?product=machine&tier=starter">Subscribe — $29/mo</a>
           </div>
         </div>
 
@@ -658,7 +735,7 @@ footer {
             <li><span class="check">✓</span> Pause / resume / cancel</li>
           </ul>
           <div class="tier-cta">
-            <a class="btn btn-primary btn-sm" href="/api/billing/checkout?product=machine&tier=pro" target="_blank">Subscribe — $79/mo</a>
+            <a class="btn btn-primary btn-sm" href="https://copilot.elabsai.com/api/billing/checkout?product=machine&tier=pro">Subscribe — $79/mo</a>
           </div>
         </div>
 
@@ -682,7 +759,7 @@ footer {
             <li><span class="cross">&ndash;</span> Explainer / cinematic video</li>
           </ul>
           <div class="tier-cta">
-            <a class="btn btn-primary btn-sm" href="/api/billing/checkout?product=content-studio&tier=basic" target="_blank">Subscribe &mdash; $49/mo</a>
+            <a class="btn btn-primary btn-sm" href="https://copilot.elabsai.com/api/billing/checkout?product=content-studio&tier=basic">Subscribe &mdash; $49/mo</a>
           </div>
         </div>
 
@@ -699,7 +776,7 @@ footer {
             <li><span class="cross">&ndash;</span> Explainer / cinematic scenes</li>
           </ul>
           <div class="tier-cta">
-            <a class="btn btn-primary btn-sm" href="/api/billing/checkout?product=content-studio&tier=pro" target="_blank">Subscribe &mdash; $149/mo</a>
+            <a class="btn btn-primary btn-sm" href="https://copilot.elabsai.com/api/billing/checkout?product=content-studio&tier=pro">Subscribe &mdash; $149/mo</a>
           </div>
         </div>
 
@@ -716,7 +793,7 @@ footer {
             <li><span class="check">✓</span> API access</li>
           </ul>
           <div class="tier-cta">
-            <a class="btn btn-primary btn-sm" href="/api/billing/checkout?product=content-studio&tier=studio" target="_blank">Subscribe &mdash; $499/mo</a>
+            <a class="btn btn-primary btn-sm" href="https://copilot.elabsai.com/api/billing/checkout?product=content-studio&tier=studio">Subscribe &mdash; $499/mo</a>
           </div>
         </div>
 
@@ -911,6 +988,79 @@ footer {
   </div>
 </div>
 </footer>
+
+<script>
+'use strict';
+var _ELABS_AUTH = 'https://copilot.elabsai.com';
+var _ELABS_TK   = 'elabs_token';
+
+function openElModal(){
+  document.getElementById('elModal').classList.add('open');
+  setTimeout(function(){document.getElementById('elU').focus();},80);
+}
+function closeElModal(){
+  document.getElementById('elModal').classList.remove('open');
+  document.getElementById('elErr').classList.remove('show');
+  document.getElementById('elForm').reset();
+}
+
+// GitHub OAuth — returns to this page after login
+document.getElementById('elGhBtn').addEventListener('click',function(){
+  var ret = encodeURIComponent(location.href);
+  window.location.href = _ELABS_AUTH + '/api/auth/github?redirect=' + ret;
+});
+
+document.getElementById('elClose').addEventListener('click', closeElModal);
+document.getElementById('elModal').addEventListener('click',function(e){if(e.target===this)closeElModal();});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeElModal();});
+
+document.getElementById('elForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var u = document.getElementById('elU').value.trim();
+  var p = document.getElementById('elP').value;
+  var errEl = document.getElementById('elErr');
+  var btn   = document.getElementById('elSubmit');
+  errEl.classList.remove('show');
+  if(!u||!p){errEl.textContent='Please enter your username and password.';errEl.classList.add('show');return;}
+  btn.disabled=true; btn.textContent='Signing in\u2026';
+  try{
+    var r = await fetch(_ELABS_AUTH+'/api/auth/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({username:u,password:p}),
+      credentials:'include'
+    });
+    if(r.ok){
+      var d = await r.json();
+      sessionStorage.setItem(_ELABS_TK, d.access_token||'');
+      closeElModal();
+      // Update nav button to show signed-in state
+      var loginBtn = document.getElementById('elLoginBtn');
+      if(loginBtn){loginBtn.textContent='My Account';loginBtn.onclick=null;}
+    } else {
+      var err = await r.json().catch(function(){return{};});
+      errEl.textContent = err.detail||'Invalid credentials. Please try again.';
+      errEl.classList.add('show');
+    }
+  } catch(_){
+    errEl.textContent='Backend unreachable. Please try again later.';
+    errEl.classList.add('show');
+  } finally {
+    btn.disabled=false; btn.textContent='Sign In';
+  }
+});
+
+// On load: if returning from GitHub OAuth the elabs_token cookie was set —
+// read it into sessionStorage so other pages can use it too.
+(function syncCookieToStorage(){
+  var m = document.cookie.match(/(?:^|; )elabs_token=([^;]*)/);
+  if(m && m[1] && !sessionStorage.getItem(_ELABS_TK)){
+    sessionStorage.setItem(_ELABS_TK, decodeURIComponent(m[1]));
+    var loginBtn = document.getElementById('elLoginBtn');
+    if(loginBtn){loginBtn.textContent='My Account';loginBtn.onclick=null;}
+  }
+})();
+</script>
 
 </body>
 </html>

@@ -38,6 +38,11 @@ try:
 except ImportError:
     raise RuntimeError("python-jose is required: pip install python-jose[cryptography]")
 
+try:
+    import httpx as _httpx
+except ImportError:
+    _httpx = None  # type: ignore  — GitHub OAuth routes will 503 if httpx missing
+
 logger = logging.getLogger(__name__)
 
 # ──────────────────────────────────────────
@@ -48,8 +53,14 @@ _ALGORITHM  = "HS256"
 _ACCESS_TOKEN_EXPIRE_MINUTES  = int(os.environ.get("ELABS_ACCESS_TOKEN_MINUTES", "15"))
 _REFRESH_TOKEN_EXPIRE_DAYS    = int(os.environ.get("ELABS_REFRESH_TOKEN_DAYS", "7"))
 _REFRESH_COOKIE_NAME          = "elabs_refresh"
+_ACCESS_COOKIE_NAME           = "elabs_token"   # non-HttpOnly; readable by JS + GET billing endpoint
 _ADMIN_BOOTSTRAP_USERNAME     = os.environ.get("ELABS_ADMIN_USER", "admin")
 _ADMIN_BOOTSTRAP_PASSWORD     = os.environ.get("ELABS_ADMIN_PASS", "")  # empty = disabled
+
+# GitHub OAuth config
+_GITHUB_CLIENT_ID     = os.environ.get("GITHUB_CLIENT_ID", "")
+_GITHUB_CLIENT_SECRET = os.environ.get("GITHUB_CLIENT_SECRET", "")
+_ALLOWED_REDIRECT_HOST = ".elabsai.com"  # only redirect to *.elabsai.com after OAuth
 
 # DB path: same directory as app.py
 _DB_PATH = Path(__file__).parent / "elabs_users.db"
@@ -160,6 +171,30 @@ def _create_refresh_token(user_id: int) -> str:
     return jwt.encode(payload, _SECRET_KEY, algorithm=_ALGORITHM)
 
 
+def _set_access_cookie(response: Response, access_token: str) -> None:
+    """Set the non-HttpOnly access-token cookie shared across *.elabsai.com."""
+    response.set_cookie(
+        key=_ACCESS_COOKIE_NAME,
+        value=access_token,
+        httponly=False,   # JS-readable; needed for billing redirect + cross-subdomain auth check
+        secure=False,     # set True in production behind TLS
+        samesite="lax",
+        domain=".elabsai.com",
+        max_age=_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+
+
+def _validate_redirect(url: str) -> str:
+    """Ensure the OAuth return URL is within *.elabsai.com (prevent open redirect)."""
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    if not (host == "elabsai.com" or host.endswith(_ALLOWED_REDIRECT_HOST)):
+        return "https://www.elabsai.com"
+    return url
+
+
 def _decode_token(token: str) -> dict:
     """Decode and validate a JWT. Raises HTTPException on failure."""
     try:
@@ -259,6 +294,8 @@ def login(body: LoginRequest, response: Response):
         max_age=_REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         path="/api/auth",
     )
+    # Non-HttpOnly access-token cookie so JS and GET billing endpoints can read it
+    _set_access_cookie(response, access_token)
 
     return {
         "access_token": access_token,
@@ -353,3 +390,170 @@ def auth_guard(
     if not _REQUIRE_AUTH:
         return None
     return get_current_user(credentials)
+
+
+# ──────────────────────────────────────────
+# GitHub OAuth — E-Labs Account SSO
+# ──────────────────────────────────────────
+# Register a GitHub OAuth App at https://github.com/settings/developers
+# Callback URL: https://copilot.elabsai.com/api/auth/github/callback
+# Env vars required: GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+# ──────────────────────────────────────────
+
+import base64 as _base64
+import hashlib as _hashlib
+import hmac as _hmac
+import json as _json
+
+
+def _github_state_encode(redirect_url: str) -> str:
+    """Encode redirect URL + HMAC into a base64 state param."""
+    safe_url = _validate_redirect(redirect_url)
+    payload = _json.dumps({"r": safe_url}).encode()
+    mac = _hmac.new(_SECRET_KEY.encode(), payload, _hashlib.sha256).hexdigest()
+    return _base64.urlsafe_b64encode(payload + b"|" + mac.encode()).decode()
+
+
+def _github_state_decode(state: str) -> str:
+    """Decode and verify state; return redirect URL or homepage on failure."""
+    try:
+        raw = _base64.urlsafe_b64decode(state.encode())
+        payload_b, mac_b = raw.rsplit(b"|", 1)
+        expected = _hmac.new(_SECRET_KEY.encode(), payload_b, _hashlib.sha256).hexdigest().encode()
+        if not _hmac.compare_digest(mac_b, expected):
+            return "https://www.elabsai.com"
+        data = _json.loads(payload_b)
+        return _validate_redirect(data.get("r", "https://www.elabsai.com"))
+    except Exception:
+        return "https://www.elabsai.com"
+
+
+def _upsert_github_user(github_id: int, login: str, email: str) -> sqlite3.Row:
+    """Find or create a user for this GitHub identity."""
+    conn = _get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM users WHERE github_id = ?", (github_id,)
+        ).fetchone()
+        if row:
+            conn.execute(
+                "UPDATE users SET last_login = ? WHERE id = ?",
+                (datetime.now(timezone.utc).isoformat(), row["id"]),
+            )
+            conn.commit()
+            return conn.execute("SELECT * FROM users WHERE id = ?", (row["id"],)).fetchone()
+        # New user — create account (role=client)
+        conn.execute(
+            """INSERT INTO users (username, email, hashed_password, role, created_at, github_id)
+               VALUES (?, ?, '', 'client', ?, ?)""",
+            (login, email or "", datetime.now(timezone.utc).isoformat(), github_id),
+        )
+        conn.commit()
+        return conn.execute("SELECT * FROM users WHERE github_id = ?", (github_id,)).fetchone()
+    finally:
+        conn.close()
+
+
+def _ensure_github_column():
+    """Add github_id column to users table if not present (migration)."""
+    conn = _get_db()
+    try:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+        if "github_id" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN github_id INTEGER")
+            conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_github_column()
+
+
+from fastapi.responses import RedirectResponse as _RedirectResponse
+
+
+@router.get("/github")
+def github_login(redirect: str = "https://www.elabsai.com"):
+    """Redirect the browser to GitHub to begin OAuth. Pass ?redirect= to return after login."""
+    if not _GITHUB_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="GitHub OAuth not configured (GITHUB_CLIENT_ID missing)")
+    state = _github_state_encode(redirect)
+    scope = "read:user,user:email"
+    url = (
+        f"https://github.com/login/oauth/authorize"
+        f"?client_id={_GITHUB_CLIENT_ID}"
+        f"&scope={scope}"
+        f"&state={state}"
+    )
+    return _RedirectResponse(url)
+
+
+@router.get("/github/callback")
+async def github_callback(code: str = "", state: str = "", response: Response = None):
+    """GitHub calls this after the user authorizes. Issues JWT and redirects back."""
+    if not _GITHUB_CLIENT_ID or not _GITHUB_CLIENT_SECRET:
+        raise HTTPException(status_code=503, detail="GitHub OAuth not configured")
+    if not _httpx:
+        raise HTTPException(status_code=503, detail="httpx is required: pip install httpx")
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing OAuth code")
+
+    redirect_to = _github_state_decode(state) if state else "https://www.elabsai.com"
+
+    # Exchange code for access token
+    async with _httpx.AsyncClient() as client:
+        token_resp = await client.post(
+            "https://github.com/login/oauth/access_token",
+            json={"client_id": _GITHUB_CLIENT_ID, "client_secret": _GITHUB_CLIENT_SECRET, "code": code},
+            headers={"Accept": "application/json"},
+            timeout=10,
+        )
+        if token_resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="GitHub token exchange failed")
+        gh_token = token_resp.json().get("access_token", "")
+        if not gh_token:
+            raise HTTPException(status_code=502, detail="GitHub did not return an access token")
+
+        # Fetch GitHub user profile
+        user_resp = await client.get(
+            "https://api.github.com/user",
+            headers={"Authorization": f"token {gh_token}", "Accept": "application/json"},
+            timeout=10,
+        )
+        if user_resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Failed to fetch GitHub user profile")
+        gh_user = user_resp.json()
+        github_id = gh_user["id"]
+        login = gh_user.get("login", f"gh_{github_id}")
+
+        # Fetch primary verified email
+        email = gh_user.get("email") or ""
+        if not email:
+            emails_resp = await client.get(
+                "https://api.github.com/user/emails",
+                headers={"Authorization": f"token {gh_token}", "Accept": "application/json"},
+                timeout=10,
+            )
+            if emails_resp.status_code == 200:
+                for e in emails_resp.json():
+                    if e.get("primary") and e.get("verified"):
+                        email = e["email"]
+                        break
+
+    user = _upsert_github_user(github_id, login, email)
+    access_token  = _create_access_token(user["id"], user["role"])
+    refresh_token = _create_refresh_token(user["id"])
+
+    redirect_resp = _RedirectResponse(redirect_to, status_code=302)
+    redirect_resp.set_cookie(
+        key=_REFRESH_COOKIE_NAME,
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=_REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        path="/api/auth",
+    )
+    _set_access_cookie(redirect_resp, access_token)
+    return redirect_resp
+

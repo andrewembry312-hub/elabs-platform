@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import stripe
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Body
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, Body, Cookie
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
@@ -254,6 +254,69 @@ async def create_checkout_session(
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     return {"url": session.url, "session_id": session.id}
+
+
+@router.get("/checkout")
+async def checkout_redirect(
+    product: str,
+    tier: str,
+    elabs_token: Optional[str] = Cookie(default=None),
+):
+    """
+    GET-based Stripe checkout redirect.
+    Reads the E-Labs access token from the elabs_token cookie (set after login/GitHub OAuth).
+    If no valid session, redirects to the homepage login prompt instead of Stripe.
+    """
+    from auth_router import _decode_token, _get_user_by_id  # local import to avoid circular at module load
+
+    if not stripe.api_key:
+        raise HTTPException(status_code=503, detail="Billing not configured (STRIPE_SECRET_KEY missing)")
+
+    key = f"{product}:{tier}"
+    price_id = _PRICE_IDS.get(key, "")
+    if not price_id:
+        raise HTTPException(status_code=400, detail=f"Unknown product/tier: {key}")
+
+    # Resolve user from cookie (best-effort — unauthenticated users redirected to login)
+    user = None
+    if elabs_token:
+        try:
+            from jose import JWTError
+            payload = _decode_token(elabs_token)
+            if payload.get("type") == "access":
+                user = _get_user_by_id(int(payload["sub"]))
+        except Exception:
+            pass  # expired/invalid token — fall through to login redirect
+
+    if not user:
+        # Return to this URL after login (pass as fragment so it survives redirect)
+        login_page = f"https://www.elabsai.com/#pricing"
+        return RedirectResponse(login_page, status_code=302)
+
+    # Determine the right success_url: return user to the product page they came from
+    _product_pages = {
+        "copilot":        "https://copilot.elabsai.com",
+        "machine":        "https://machine.elabsai.com",
+        "content-studio": "https://www.elabsai.com/studio.html",
+    }
+    base_url = _product_pages.get(product, f"https://{_PUBLIC_DOMAIN}")
+
+    try:
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=f"{base_url}?checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{base_url}?checkout=canceled",
+            client_reference_id=str(user["id"]),
+            customer_email=user.get("email") or None,
+            metadata={"user_id": str(user["id"]), "product": product, "tier": tier},
+            subscription_data={"metadata": {"user_id": str(user["id"]), "product": product, "tier": tier}},
+        )
+    except stripe.StripeError as exc:
+        log.error("Stripe checkout GET error: %s", exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    return RedirectResponse(session.url, status_code=303)
 
 
 @router.get("/subscription")
